@@ -1,13 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
 #include "libDisk.h"
-#include "tinyFS.h"
-#include "tinyFS_errno.h"
+#include "TinyFS_errno.h"
+
+#define UINT usigned int
 
 /* This functions opens a regular UNIX file and designates the first
 nBytes of it as space for the emulated disk. If nBytes is not exactly
@@ -20,34 +18,7 @@ disk is opened, and should not be overwritten. There is no
 requirement to maintain integrity of any file content beyond nBytes.
 The return value is -1 on failure or a disk number on success. */
 int openDisk(char *filename, int nBytes) {
-   char *buf;
-   int i;
-   fileDescriptor fd;
-   if (nBytes == 0) {
-      return open(filename, 0);
-   }
-   else if (nBytes < BLOCKSIZE) {
-      errno = BLOCKSIZE_FAILURE;
-      return -1;
-   }
-   else {
-      if ((fd = open(filename, O_CREAT)) >= 0) {
-         while (nBytes % BLOCKSIZE != 0) {
-            nBytes--;
-         }
-         buf = (char*) malloc(nBytes * sizeof(char));
-         for (i = 0; i < nBytes; i++) {
-            buf[i] = '\0';
-         }
-         if (write(fd, buf, nBytes) < nBytes) {
-            free(buf);
-            errno = INIT_FILE_FAILURE;
-            return -1;
-         }
-         free(buf);
-      }
-   }
-	return fd;
+	return 0;
 }
 
 /* readBlock() reads an entire block of BLOCKSIZE bytes from the open
@@ -94,5 +65,27 @@ byte position in the file. On success, it returns 0. -1 or smaller is
 returned if disk is not available (i.e. hasn’t been opened) or any
 other failures. You must define your own error code system. */
 int writeBlock(int disk, int bNum, void *block) {
-	return 0;
+
+   int ret = 0;
+   UINT offset = bnum * BLOCKSIZE;
+   
+   //Seek to specified offset, check for error
+   if (lseek(disk, offset, SEEK_SET) < 0)
+   {
+      perror("writeBlock: lseek:")
+      return ERR_SEEK
+   }
+   //Write to file, if success set ret to 0
+   if ((write(disk, buf, sizeof(buf))) <= 0)
+   {
+      perror("writeBlock");
+      ret  = WRITE_ERR;
+   }
+   //reset file to point to the beginning
+   if (lseek(disk, 0, SEEK_SET) < 0)
+   {
+      perror("writeBlock: lseek:")
+      ret = ERR_SEEK;
+   }
+	return ret;
 }

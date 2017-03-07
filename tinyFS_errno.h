@@ -1,4 +1,4 @@
 #define ERR_SEEK -1
 #define ERR_READ -2
-#define BLOCKSIZE_FAILURE -3
-#define INIT_FILE_FAILURE -4
+#define ERR_WRITE -3
+#define NO_WRITE -4
