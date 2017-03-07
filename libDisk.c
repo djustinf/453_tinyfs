@@ -16,7 +16,34 @@ disk is opened, and should not be overwritten. There is no
 requirement to maintain integrity of any file content beyond nBytes.
 The return value is -1 on failure or a disk number on success. */
 int openDisk(char *filename, int nBytes) {
-	return 0;
+   char *buf;
+   int i;
+   fileDescriptor fd;
+   if (nBytes == 0) {
+      return open(filename);
+   }
+   else if (nBytes < BLOCKSIZE) {
+      errno = BLOCKSIZE_FAILURE;
+      return -1;
+   }
+   else {
+      if ((fd = open(filename, O_CREAT)) >= 0) {
+         while (nBytes % BLOCKSIZE != 0) {
+            nBytes--;
+         }
+         buf = (char*) malloc(nBytes * sizeof(char));
+         for (i = 0; i < nBytes; i++) {
+            buf[i] = "\0";
+         }
+         if (write(fd, buf, nBytes) < nBytes) {
+            free(buf);
+            errno = INIT_FILE_FAILURE;
+            return -1;
+         }
+         free(buf);
+      }
+   }
+	return fd;
 }
 
 /* readBlock() reads an entire block of BLOCKSIZE bytes from the open
