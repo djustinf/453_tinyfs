@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include "libDisk.h"
-#include "TinyFS_errno.h"
+#include "tinyFS.h"
+#include "tinyFS_errno.h"
 
 /* This functions opens a regular UNIX file and designates the first
 nBytes of it as space for the emulated disk. If nBytes is not exactly
@@ -20,7 +24,7 @@ int openDisk(char *filename, int nBytes) {
    int i;
    fileDescriptor fd;
    if (nBytes == 0) {
-      return open(filename);
+      return open(filename, 0);
    }
    else if (nBytes < BLOCKSIZE) {
       errno = BLOCKSIZE_FAILURE;
@@ -33,7 +37,7 @@ int openDisk(char *filename, int nBytes) {
          }
          buf = (char*) malloc(nBytes * sizeof(char));
          for (i = 0; i < nBytes; i++) {
-            buf[i] = "\0";
+            buf[i] = '\0';
          }
          if (write(fd, buf, nBytes) < nBytes) {
             free(buf);
