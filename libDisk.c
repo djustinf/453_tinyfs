@@ -1,4 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include "tinyFS.h"
+#include "TinyFS_errno.h"
 
 /* This functions opens a regular UNIX file and designates the first
 nBytes of it as space for the emulated disk. If nBytes is not exactly
@@ -25,6 +30,28 @@ it returns 0. -1 or smaller is returned if disk is not available
 (hasn’t been opened) or any other failures. You must define your own
 error code system. */
 int readBlock(int disk, int bNum, void *block) {
+	unsigned int byteOffset = bNum * BLOCKSIZE;
+	int readStatus = 0;
+	
+	// Seek to the specified offset on the disk. 
+	readStatus = lseek(disk, byteOffset, SEEK_SET);
+	
+	// There was an error moving to the specified offset.
+	if (readStatus == -1) {
+		printf("Seek error!\n");
+		return ERR_SEEK;
+	}
+	
+	// Now try to read from the disk and copy to the local buffer.
+	readStatus = read(disk, block, BLOCKSIZE);
+	
+	// Return value of read was negative, so there was an error.
+	if (readStatus < -1) {
+		printf("Read error!\n");
+		return ERR_READ;
+	}
+	
+	// If we reach here, we didn't have any errors so we return 0.
 	return 0;
 }
 
