@@ -59,24 +59,17 @@ it returns 0. -1 or smaller is returned if disk is not available
 (hasn’t been opened) or any other failures. You must define your own
 error code system. */
 int readBlock(int disk, int bNum, void *block) {
-	unsigned int byteOffset = bNum * BLOCKSIZE;
-	int readStatus = 0;
+	UINT byteOffset = bNum * BLOCKSIZE;
 	
-	// Seek to the specified offset on the disk. 
-	readStatus = lseek(disk, byteOffset, SEEK_SET);
-	
-	// There was an error moving to the specified offset.
-	if (readStatus == -1) {
-		printf("Seek error!\n");
+	// Seek to the specified offset on the disk, check for error.
+	if (lseek(disk, byteOffset, SEEK_SET) == -1) {
+		perror("readBlock: Seek error");
 		return ERR_SEEK;
 	}
 	
-	// Now try to read from the disk and copy to the local buffer.
-	readStatus = read(disk, block, BLOCKSIZE);
-	
-	// Return value of read was negative, so there was an error.
-	if (readStatus < -1) {
-		printf("Read error!\n");
+	// Now try to read from the disk and copy to the local buffer, check for error.
+	if (read(disk, block, BLOCKSIZE) < -1) {
+		perror("readBlock: Read error");
 		return ERR_READ;
 	}
 	
@@ -96,22 +89,25 @@ int writeBlock(int disk, int bNum, void *block) {
    UINT offset = bNum * BLOCKSIZE;
    
    //Seek to specified offset, check for error
-   if (lseek(disk, offset, SEEK_SET) < 0)
+   if (lseek(disk, offset, SEEK_SET) == -1)
    {
-      perror("writeBlock: lseek:");
+      perror("writeBlock: seek error");
       return ERR_SEEK;
    }
    //Write to file, if success set ret to 0
    if ((write(disk, block, BLOCKSIZE)) <= 0)
    {
-      perror("writeBlock");
+      perror("writeBlock: Write error");
       ret  = ERR_WRITE;
    }
+	/*
+	I don't think we need to do this... -Geoff
    //reset file to point to the beginning
    if (lseek(disk, 0, SEEK_SET) < 0)
    {
       perror("writeBlock: lseek:");
       ret = ERR_SEEK;
    }
+	*/
 	return ret;
 }
