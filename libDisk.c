@@ -19,7 +19,7 @@ requirement to maintain integrity of any file content beyond nBytes.
 The return value is -1 on failure or a disk number on success. */
 int openDisk(char *filename, int nBytes) {
 	char *buf;
-	int i, val;
+	int i;
 	int fd;
 	if (nBytes == 0) {
 		return open(filename, 0);
