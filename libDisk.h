@@ -1,6 +1,8 @@
 /* The default size of the disk and file system block */
 #define BLOCKSIZE 256
 
+#define UINT unsigned int
+
 /* This functions opens a regular UNIX file and designates the first
 nBytes of it as space for the emulated disk. If nBytes is not exactly
 a multiple of BLOCKSIZE then the disk size will be the closest
