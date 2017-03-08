@@ -2,3 +2,5 @@
 diskTest
 
 *.dsk
+*.idea
+*.exe
