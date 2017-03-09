@@ -12,10 +12,11 @@
  - Byte 1: "magic number" = 0x44
  - Byte 2: points to first file extent
  - Byte 3: EMPTY
- - Byte 4-11: file name
- - Byte 12: null term
- - Byte 13-16: file size (standard int)
- - Byte 17-UNKNOWN: 3 timestamps (created, modified, accessed)
+ - Byte 4: pointer to next inode or null if last one
+ - Byte 5-12: file name
+ - Byte 13: null term
+ - Byte 14-17: file size (standard int)
+ - Byte 18-UNKNOWN: 3 timestamps (created, modified, accessed)
 
 ## File Extent
  - Contains file data
