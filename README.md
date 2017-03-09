@@ -4,7 +4,8 @@
  - Has to be at Block 0
  - Byte 0: block type = 1
  - Byte 1: "magic number" = 0x44
- - Byte 2: first free block address
+ - Byte 2: first free block address or null if none
+ - Byte 3: first inode address or null if none
  
 ## Inode
  - Beginning of a file
