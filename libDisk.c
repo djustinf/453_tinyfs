@@ -5,7 +5,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "libDisk.h"
-#include "TinyFS_errno.h"
+#include "tinyFS_errno.h"
+#include "tinyFS.h"
 
 /* This functions opens a regular UNIX file and designates the first
 nBytes of it as space for the emulated disk. If nBytes is not exactly
@@ -20,7 +21,7 @@ The return value is -1 on failure or a disk number on success. */
 int openDisk(char *filename, int nBytes) {
 	char *buf;
 	int i;
-	int fd;
+	fileDescriptor fd;
 	if (nBytes == 0) {
 		return open(filename, 0);
 	}
