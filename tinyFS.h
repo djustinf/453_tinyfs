@@ -13,9 +13,12 @@ different possible values */
 
 typedef int fileDescriptor;
 
-struct {
+typedef struct {
 	char mem[BLOCKSIZE];
 } tfs_block;
+
+void initFreeblock(tfs_block *block, char nextFree);
+void initSuperblock(tfs_block *block, char firstFree);
 
 /* Makes a blank TinyFS file system of size nBytes on the unix file
 specified by ‘filename’. This function should use the emulated disk
