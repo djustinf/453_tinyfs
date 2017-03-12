@@ -67,18 +67,20 @@ void initSuperblock(tfs_block *buf, unsigned char firstFree, int nBytes) {
 	}
 }
 
-void initInodeblock(char buf[BLOCKSIZE], char* name) {
+void initInodeblock(tfs_block *buf, char* name) {
 	int i;
 	
 	// Set block type.
-	buf[0] = 2;
+	buf->mem[0] = 2;
 
 	// Next inode is null since this is the newest inode.
-	buf[3] = '\0';
-	
+	buf->mem[3] = '\0';
 	
 	// Write the name.
-	memcpy(buf+4, name, strlen(name));
+	for (i = 5; i < strlen(name); i++) {
+			buf->mem[i] = *name;
+			name++;
+	}
 
 	// TODO: Write creation date, last modified date, and last accessed date.
 	// When we first create the file, all of these will be equal.
@@ -149,7 +151,8 @@ int tfs_unmount(void) {
 fileDescriptor tfs_openFile(char *name) {
 	fileDescriptor fd;
 	int fileExists;
-	char buf[BLOCKSIZE];
+	//char buf[BLOCKSIZE];
+	tfs_block buf;
 	int diskNum;
 	unsigned char numFiles;
 	char tempName[9];
@@ -167,13 +170,14 @@ fileDescriptor tfs_openFile(char *name) {
 		diskNum = openDisk(mountedDisk, 0);
 		
 		// Read the superblock from the disk. 
-		readBlock(diskNum, 0, buf);
+		// TODO: Pointer issue?
+		readBlock(diskNum, 0, &buf);
 		
 		// Get the number of blocks from the superblock.
-		numFiles = buf[4] - 1;
+		numFiles = buf->mem[4] - 1;
 		
 		// Get the address of the first free block.
-		firstFree = buf[2];
+		firstFree = buf->mem[2];
 		
 		// Use that as the upper bound for the open files table so we can iterate through it.
 		// Iterate through the table, and check if we find an entry that equals our name. 
@@ -196,13 +200,14 @@ fileDescriptor tfs_openFile(char *name) {
 	// Loop through the inodes and see if we have one that matches the specified name.
 	for (int i = 1; i <= numFiles && !fileExists; i++) {
 		// Read the block.
-		readBlock(diskNum, i, buf);
+		readBlock(diskNum, i, &buf);
 		
 		// Check if this block is an inode.
-		if (buf[0] == 2) {
+		if (buf->mem[0] == 2) {
 			
 			// Now check if the names equal.
-			if(!strcmp(name, buf+4)) {
+			// TODO: Pointer issue?
+			if(!strcmp(name, buf->mem+4)) {
 				fileExists = 1;
 				fd = i;
 				break;
@@ -214,21 +219,25 @@ fileDescriptor tfs_openFile(char *name) {
 	if (!fileExists) {
 		
 		// Read in the first free block.
-		readBlock(diskNum, firstFree, buf);
+		// TODO: Pointer issue?
+		readBlock(diskNum, firstFree, &buf);
 		
 		// Init the inode block at that free block.
-		// TODO: Might have a pointer issue here...
+		// TODO: Pointer issue?
 		initInodeblock(&buf, name);
 		
 		// Now write the new inode back.
-		writeBlock(diskNum, i, buf);
-		
-		// TODO: Set the file descriptor location.
+		// Pointer issue?w
+		writeBlock(diskNum, i, &buf);
 	}
 	
 	// The file exists, we just need to open it.
 	else {
 		strcpy(openFilesTable[fd], name);
+		
+		// Reset the file descriptor location.
+		openFilesLocation[fd] = 0;
+		
 		// TODO: Set last accessed time.
 	}
 	
