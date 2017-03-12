@@ -7,7 +7,7 @@ different possible values */
 #define DEFAULT_DISK_SIZE 10240
 
 /* use this name for a default disk file name */
-#define DEFAULT_DISK_NAME "tinyfsDisk"
+#define DEFAULT_DISK_NAME "tinyFSDisk"
 
 #define MAGIC_NUM 0x44
 

@@ -292,40 +292,51 @@ int tfs_deleteFile(fileDescriptor FD) {
 }
 
 int tfs_readByte(fileDescriptor FD, char *buffer) {
-    int ret, ioffset, inext;
-   tfs_block block, inode;
-
+    int ret, idx;
+   tfs_block inode, fileEx;
+   
    //check if file is mounted and that file exists
    if((ret = checkMountAndFile(FD)) < 0)
       return ret;
 
+   //get the current location of the file pouinter
+   idx = openFilesLocation[FD];
+
    //read from inode to get the first ref to file extent
-   if (readBlock (FD, 0, block) < 0)
-      return ERR_HEAD;
-
-   //get the reference to the first inode
-   ret = block[2];
-
-   //check if block read is an INODE
-   
-   //read the INODE block, it should be at offset 2
-   if(readBlock(FD, 1, block) < 0)
+   if (readBlock(FD, 0, inode) < 0)
       return ERR_READ;
-
-  
-
-   //copy conetent into buffer
-   memcpy(buffer, fextent + 4, 252);
    
-   //update inode
-   inode[2]++;
-   inode[3]++;
+   //get the location of the file extent
 
-   if(writeBlock(FD, ret, inode))
+   if (readBlock(FD, inode[2], fileEx) < 0)
    {
+      return ERR_READ;
+   }
+ 
+   
+   while ((idx > 252) && (fileEx.mem[2] != '\0'))
+   {
+      ret = fileEx[2];
+
+      if (readBlock(FD, retm fileEx) < 0)
+      {
+         return ERR_READ;
+      }
+      
+      idx -= 252;
+   }
+   //check if EOF
+   if (idx <= 252)
+   {
+      return ERR_INVALID_TFS;      
       return ERR_WRITE;
    }
-   //copy data into buffer
+
+   //get the reference to the first inode
+    memcpy(buffer, fileEx + 4 + idx, sizeof(char));
+
+   //update inode
+   openFilesLocation[FD]++;
    
 	return SUCCESS;
 }
