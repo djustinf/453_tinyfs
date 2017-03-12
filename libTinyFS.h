@@ -7,7 +7,7 @@ different possible values */
 #define DEFAULT_DISK_SIZE 10240
 
 /* use this name for a default disk file name */
-#define DEFAULT_DISK_NAME “tinyFSDisk”
+#define DEFAULT_DISK_NAME "tinyfsDisk"
 
 #define MAGIC_NUM 0x44
 
@@ -19,8 +19,9 @@ typedef struct {
 	char mem[BLOCKSIZE];
 } tfs_block;
 
-void initFreeblock(tfs_block *block, char nextFree);
-void initSuperblock(tfs_block *block, char firstFree);
+void initFreeblock(tfs_block *block, unsigned char nextFree);
+void initSuperblock(tfs_block *block, unsigned char firstFree, int nBytes);
+void initInodeblock(tfs_block *buf, char* name);
 
 /* Makes a blank TinyFS file system of size nBytes on the unix file
 specified by ‘filename’. This function should use the emulated disk

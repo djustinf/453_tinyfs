@@ -12,3 +12,4 @@
 #define ERR_INVALID_TFS -9
 #define ERR_TFS_UNMOUNT -10
 #define ERR_TFS_NOT_MOUNTED -11
+#define ERR_FILE_CLOSE -12

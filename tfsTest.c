@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tinyFS.h"
+//#include "tinyFS.h"
 #include "libTinyFS.h"
 #include "tinyFS_errno.h"
 

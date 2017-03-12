@@ -4,8 +4,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <string.h>
 #include "tinyFS_errno.h"
-#include "libDisk.h"
 #include "libTinyFS.h"
 #include "libDisk.h"
 
@@ -99,7 +99,7 @@ int tfs_mount(char *diskname) {
 	// Not mounted, so mount it and verify the TFS type.
 	else {
 		// Open the disk.
-		diskNum = openDisk(filename, 0);
+		diskNum = openDisk(diskname, 0);
 		
 		// Read the superblock.
 		readBlock(diskNum, 0, buf);
@@ -110,9 +110,9 @@ int tfs_mount(char *diskname) {
 			return ERR_INVALID_TFS;
 		}
 	}
-	mountedDisk = filename;
-	openFilesTable = (char*) malloc(sizeof(char*) * (unsigned char) buf[4]);
-	openFilesLocation = (int) malloc(sizeof(int) * (unsigned char) buf[4])
+	mountedDisk = diskname;
+	openFilesTable = (char**) malloc(sizeof(char*) * (unsigned char) buf[4]);
+	openFilesLocation = (int*) malloc(sizeof(int) * (unsigned char) buf[4]);
 	for (i = 0; i < (unsigned char) buf[4]; i++) {
 	    openFilesTable[i][0] = '\0';
 	    openFilesLocation[i] = 0;
@@ -226,8 +226,8 @@ fileDescriptor tfs_openFile(char *name) {
 		initInodeblock(&buf, name);
 		
 		// Now write the new inode back.
-		// Pointer issue?w
-		writeBlock(diskNum, i, &(buf.mem));
+		// Pointer issue?
+		writeBlock(diskNum, fd, &(buf.mem));
 	}
 	
 	// The file exists, we just need to open it.
@@ -247,7 +247,7 @@ int tfs_closeFile(fileDescriptor FD) {
 	
 	// File is open, so close it.
 	if (openFilesTable[FD] != '\0') {
-		openFilesTable[FD] = '\0';
+		openFilesTable[FD] = "\0";
 		return SUCCESS;
 	}
 	// Not open, so we can't close it.
@@ -269,7 +269,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
 
    //check read-only
    if ((curIdx = getCurIdx(FD)) < 0)
-      return ERR_WRITE:
+      return ERR_WRITE;
 
    //write the data
 
@@ -323,7 +323,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 
    if(writeBlock(FD, ret, inode))
    {
-      return WRITE_ERR;
+      return ERR_WRITE;
    }
    //copy data into buffer
    
@@ -337,7 +337,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
 	// Check if offset puts you past last file extent.
 	
 	// If neither of these fails, set the FD to the offset.
-	openFilesLocation[fd] = offset;
+	openFilesLocation[FD] = offset;
 	
 	return SUCCESS;
 }
