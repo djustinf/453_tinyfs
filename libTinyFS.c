@@ -67,6 +67,23 @@ void initSuperblock(tfs_block *buf, unsigned char firstFree, int nBytes) {
 	}
 }
 
+void initInodeblock(char buf[BLOCKSIZE], char* name) {
+	int i;
+	
+	// Set block type.
+	buf[0] = 2;
+
+	// Next inode is null since this is the newest inode.
+	buf[3] = '\0';
+	
+	
+	// Write the name.
+	memcpy(buf+4, name, strlen(name));
+
+	// TODO: Write creation date, last modified date, and last accessed date.
+	// When we first create the file, all of these will be equal.
+}
+
 int tfs_mount(char *diskname) {
 	char buf[BLOCKSIZE];
 	int diskNum, i;
@@ -123,18 +140,40 @@ fileDescriptor tfs_openFile(char *name) {
 	int fileExists;
 	char buf[BLOCKSIZE];
 	int diskNum;
+	unsigned char numFiles;
+	char tempName[9];
+	unsigned char firstFree;
 	
 	// Make sure we have a valid name length.
-	if (strlen(name) > MAX_FILE_NAME_LENGTH) {
-		perror("openFile: File name too long");
+	if ((strlen(name) > MAX_FILE_NAME_LENGTH) || !strlen(name)) {
+		perror("openFile: Invalid file name length");
 		return ERR_FILE_NAME_LENGTH;
 	}
 	
 	// If we have a mounted disk, check if the file is already open.
 	if (mountedDisk) {
-		// TODO: Check if the file is already open. If it is, return a FD to it.
-		// If file open.
-		// Else open the disk.
+		// Open the disk.
+		diskNum = openDisk(mountedDisk, 0);
+		
+		// Read the superblock from the disk. 
+		readBlock(diskNum, 0, buf);
+		
+		// Get the number of blocks from the superblock.
+		numFiles = buf[4] - 1;
+		
+		// Get the address of the first free block.
+		firstFree = buf[2];
+		
+		// Use that as the upper bound for the open files table so we can iterate through it.
+		// Iterate through the table, and check if we find an entry that equals our name. 
+		for (int i = 0; i < numFiles; i++) {
+			strcpy(&tempName, openFilesTable[i]);
+			
+			// If we find one, return the index of that as the FD.
+			if (!strcmp(tempName, name)) {
+				return i;
+			}	
+		}
 	}
 	
 	// Disk is not already mounted, so we can't open the file.
@@ -142,9 +181,9 @@ fileDescriptor tfs_openFile(char *name) {
 		perror("openFile: TFS not mounted");
 		return ERR_TFS_NOT_MOUNTED;
 	}
-	
+
 	// Loop through the inodes and see if we have one that matches the specified name.
-	for (int i = 0; i < DEFAULT_DISK_SIZE/BLOCKSIZE && !fileExists; i++) {
+	for (int i = 1; i <= numFiles && !fileExists; i++) {
 		// Read the block.
 		readBlock(diskNum, i, buf);
 		
@@ -152,9 +191,9 @@ fileDescriptor tfs_openFile(char *name) {
 		if (buf[0] == 2) {
 			
 			// Now check if the names equal.
-			if(!strcmp(name, buff+4)) {
+			if(!strcmp(name, buf+4)) {
 				fileExists = 1;
-				// TODO: Get a FD to this file.
+				fd = i;
 				break;
 			}
 		}
@@ -162,50 +201,34 @@ fileDescriptor tfs_openFile(char *name) {
 	
 	// Existing file wasn't found, so we need to create one.
 	if (!fileExists) {
-		// TODO: Implement inode init, giving it location of next free block.
-		for (int i = 0; i < DEFAULT_DISK_SIZE/BLOCKSIZE; i++) {
-			// Read the block.
-			readBlock(diskNum, i, buf);
-			
-			// Check if this block is free.
-			if (buf[0] == 4) {
-				break;
-			}
-		}
 		
-		// Buf now is the next free block, so let's initialize it.
-		buf[0] = 2;
+		// Read in the first free block.
+		readBlock(diskNum, firstFree, buf);
 		
-		// TODO: First file extent?
-		//buf[2] = ?;
-		
-		// Next inode is null.
-		buf[3] = '\0';
-		
-		// Write the name.
-		memcpy(buf+4, name, strlen(name));
-		
-		// TODO: Write creation date, last modified date, and last accessed date.
+		// Init the inode block at that free block.
+		// TODO: Might have a pointer issue here...
+		initInodeblock(&buf, name);
 		
 		// Now write the new inode back.
 		writeBlock(diskNum, i, buf);
+		
+		// TODO: Set the file descriptor location.
 	}
 	
 	// The file exists, we just need to open it.
 	else {
-		openFilesTable[fd] = 1;
+		strcpy(openFilesTable[fd], name);
+		// TODO: Set last accessed time.
 	}
 	
 	return fd;
 }
 
 int tfs_closeFile(fileDescriptor FD) {
-	// We need to have an array to hold all open files. In this function, we'll simply need to mark the specified file as no longer open.
-	// e.g. a 1 indicates that the file is open, and a 0 indicates the file is closed.
 	
 	// File is open, so close it.
-	if (openFilesTable[FD]) {
-		openFilesTable[FD] = 0;
+	if (openFilesTable[FD] != '\0') {
+		openFilesTable[FD] = '\0';
 		return SUCCESS;
 	}
 	// Not open, so we can't close it.
