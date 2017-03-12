@@ -331,4 +331,13 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 }
 
 int tfs_seek(fileDescriptor FD, int offset) {
+	// Check if FD is in list of open files. 
+	// If it isn't, we can't seek so return error.
+	
+	// Check if offset puts you past last file extent.
+	
+	// If neither of these fails, set the FD to the offset.
+	openFilesLocation[fd] = offset;
+	
+	return SUCCESS;
 }
