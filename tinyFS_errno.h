@@ -7,5 +7,4 @@
 #define INIT_FILE_FAILURE -5
 
 #define MKFS_FAILURE -6
-#define READ_EFF -7
-#define WRITE ERR -8
+#define MOUNT_ERR -7
