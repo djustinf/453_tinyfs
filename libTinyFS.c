@@ -5,25 +5,23 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "tinyFS_errno.h"
+#include "libDisk.h"
 #include "tinyFS.h"
 #include "libDisk.h"
 
-int openFilesTable[256];
-int mountedDisk = NULL;
+char *openFilesTable[9];
+char *mountedDisk = NULL;
 
 int tfs_mkfs(char *filename, int nBytes) {
 	tfs_block buf;
 	fileDescriptor fd;
 	int traversed = 0;
-	if (nBytes < BLOCKSIZE) {
-	    return BLOCKSIZE_FAILURE;
-	}
-	else if ((fd = open(filename, 0)) >= 0) {
+	if ((fd = openDisk(filename, nBytes)) >= 0) {
 		while (nBytes % BLOCKSIZE != 0) {
 			nBytes--;
 		}
 	    /* init and write superblock */
-	    initSuperblock(&buf, 1);
+	    initSuperblock(&buf, 1, nBytes);
 		if (write(fd, buf.mem, 1) < BLOCKSIZE) {
 			return MKFS_FAILURE;
 		}
@@ -41,18 +39,10 @@ int tfs_mkfs(char *filename, int nBytes) {
 	else {
 	    return MKFS_FAILURE;
 	}
-	
-	/*
-	// Initialize the open files table so that no files are open.
-	for (i = 0; i < 256; i++) {
-		openFilesTable[i] = 0;
-	}
-	*/
-	
 	return SUCCESS;
 }
 
-void initFreeblock(tfs_block *buf, char nextFree) {
+void initFreeblock(tfs_block *buf, unsigned char nextFree) {
     int i;
     buf->mem[0] = 4;
     buf->mem[1] = MAGIC_NUM;
@@ -62,20 +52,23 @@ void initFreeblock(tfs_block *buf, char nextFree) {
 	}
 }
 
-void initSuperblock(tfs_block *buf, char firstFree) {
+void initSuperblock(tfs_block *buf, unsigned char firstFree, int nBytes) {
     int i;
+    unsigned char blocks;
+    blocks = (unsigned char) (nBytes / BLOCKSIZE);
     buf->mem[0] = 1;
     buf->mem[1] = MAGIC_NUM;
     buf->mem[2] = firstFree;
     buf->mem[3] = '\0';
-	for (i = 4; i < BLOCKSIZE; i++) {
+    buf->mem[4] = blocks;
+	for (i = 5; i < BLOCKSIZE; i++) {
 		buf->mem[i] = 0x00;
 	}
 }
 
 int tfs_mount(char *diskname) {
 	char buf[BLOCKSIZE];
-	int diskNum;
+	int diskNum, i;
 	
 	// TFS is already mounted.
 	if (mountedDisk) {
@@ -97,9 +90,11 @@ int tfs_mount(char *diskname) {
 			return ERR_INVALID_TFS;
 		}
 	}
-	
 	mountedDisk = filename;
-	
+	openFilesTable = (char*) malloc(sizeof(char*) * (unsigned char) buf[4]);
+	for (i = 0; i < (unsigned char) buf[4]; i++) {
+	    openFilesTable[i][0] = '\0';
+	}
 	return SUCCESS;
 }
 
@@ -110,10 +105,10 @@ int tfs_unmount(void) {
 		return ERR_TFS_UNMOUNT;
 		
 	}
-	
 	// TFS is mounted, so unmount it.
 	else {
 		mountedDisk = NULL;
+		free(openFilesTable);
 	}
 	
 	return SUCCESS;
