@@ -6,6 +6,7 @@
  - Byte 1: "magic number" = 0x44
  - Byte 2: first free block address or null if none
  - Byte 3: first inode address or null if none
+ - Byte 4-7: number of available blocks (standard int)
  
 ## Inode
  - Beginning of a file
