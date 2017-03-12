@@ -6,7 +6,7 @@
 #include <errno.h>
 #include "tinyFS_errno.h"
 #include "libDisk.h"
-#include "tinyFS.h"
+#include "libTinyFS.h"
 #include "libDisk.h"
 
 char *openFilesTable[9];

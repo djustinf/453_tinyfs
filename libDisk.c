@@ -6,7 +6,7 @@
 #include <errno.h>
 #include "libDisk.h"
 #include "tinyFS_errno.h"
-#include "tinyFS.h"
+#include "libTinyFS.h"
 
 int openDisk(char *filename, int nBytes) {
 	char *buf;
