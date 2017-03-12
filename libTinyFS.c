@@ -77,7 +77,7 @@ void initInodeblock(tfs_block *buf, char* name) {
 	buf->mem[3] = '\0';
 	
 	// Write the name.
-	for (i = 5; i < strlen(name); i++) {
+	for (i = 5; i < 5 + strlen(name); i++) {
 			buf->mem[i] = *name;
 			name++;
 	}
@@ -151,7 +151,6 @@ int tfs_unmount(void) {
 fileDescriptor tfs_openFile(char *name) {
 	fileDescriptor fd;
 	int fileExists;
-	//char buf[BLOCKSIZE];
 	tfs_block buf;
 	int diskNum;
 	unsigned char numFiles;
@@ -171,13 +170,13 @@ fileDescriptor tfs_openFile(char *name) {
 		
 		// Read the superblock from the disk. 
 		// TODO: Pointer issue?
-		readBlock(diskNum, 0, &buf);
+		readBlock(diskNum, 0, &(buf.mem));
 		
 		// Get the number of blocks from the superblock.
-		numFiles = buf->mem[4] - 1;
+		numFiles = buf.mem[4] - 1;
 		
 		// Get the address of the first free block.
-		firstFree = buf->mem[2];
+		firstFree = buf.mem[2];
 		
 		// Use that as the upper bound for the open files table so we can iterate through it.
 		// Iterate through the table, and check if we find an entry that equals our name. 
@@ -200,14 +199,14 @@ fileDescriptor tfs_openFile(char *name) {
 	// Loop through the inodes and see if we have one that matches the specified name.
 	for (int i = 1; i <= numFiles && !fileExists; i++) {
 		// Read the block.
-		readBlock(diskNum, i, &buf);
+		readBlock(diskNum, i, &(buf.mem));
 		
 		// Check if this block is an inode.
-		if (buf->mem[0] == 2) {
+		if (buf.mem[0] == 2) {
 			
 			// Now check if the names equal.
 			// TODO: Pointer issue?
-			if(!strcmp(name, buf->mem+4)) {
+			if(!strcmp(name, buf.mem+4)) {
 				fileExists = 1;
 				fd = i;
 				break;
@@ -220,7 +219,7 @@ fileDescriptor tfs_openFile(char *name) {
 		
 		// Read in the first free block.
 		// TODO: Pointer issue?
-		readBlock(diskNum, firstFree, &buf);
+		readBlock(diskNum, firstFree, &(buf.mem));
 		
 		// Init the inode block at that free block.
 		// TODO: Pointer issue?
@@ -228,7 +227,7 @@ fileDescriptor tfs_openFile(char *name) {
 		
 		// Now write the new inode back.
 		// Pointer issue?w
-		writeBlock(diskNum, i, &buf);
+		writeBlock(diskNum, i, &(buf.mem));
 	}
 	
 	// The file exists, we just need to open it.
