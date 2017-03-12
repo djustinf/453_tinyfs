@@ -118,6 +118,17 @@ int tfs_mount(char *diskname) {
 	return SUCCESS;
 }
 
+int checkMountAndFile(fileDescriptor FD)
+{
+   if (!mountedDisk)
+      return ERR_TFS_NOT_MOUNTED;
+
+   if(openFilesTable[FD] == '\0')
+      return ERR_INVALID_TFS;
+
+   return SUCCESS;
+}
+
 int tfs_unmount(void) {
 	// TFS is already unmounted, so throw error.
 	if (!mountedDisk) {
@@ -238,7 +249,34 @@ int tfs_closeFile(fileDescriptor FD) {
 }
 
 int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
-	return 0;
+
+    int data[BLOCK_SIZE], ret;
+   tfs_block block;
+
+   //check if file is mounted and that file exists
+   if( (ret = checkMountAndFile) < 0)
+      return ret;
+
+   //get the data at FD
+
+   //check read-only
+   if ((curIdx = getCurIdx(FD)) < 0)
+      return ERR_WRITE:
+
+   //write the data
+
+   //increment cursor
+
+   //update inode
+
+   if (writeBlock(FD, tinyFS.inode[],block))
+   {
+      return ERR_WRITE;
+   }
+   tinyFS.curIdx++;
+   *buffer = data;
+
+	return SUCCESS;
 }
 
 int tfs_deleteFile(fileDescriptor FD) {
@@ -246,7 +284,42 @@ int tfs_deleteFile(fileDescriptor FD) {
 }
 
 int tfs_readByte(fileDescriptor FD, char *buffer) {
-	return 0;
+    int ret, ioffset, inext;
+   tfs_block block, inode;
+
+   //check if file is mounted and that file exists
+   if((ret = checkMountAndFile(FD)) < 0)
+      return ret;
+
+   //read from inode to get the first ref to file extent
+   if (readBlock (FD, 0, block) < 0)
+      return ERR_HEAD;
+
+   //get the reference to the first inode
+   ret = block[2];
+
+   //check if block read is an INODE
+   
+   //read the INODE block, it should be at offset 2
+   if(readBlock(FD, 1, block) < 0)
+      return ERR_READ;
+
+  
+
+   //copy conetent into buffer
+   memcpy(buffer, fextent + 4, 252);
+   
+   //update inode
+   inode[2]++;
+   inode[3]++;
+
+   if(writeBlock(FD, ret, inode))
+   {
+      return WRITE_ERR;
+   }
+   //copy data into buffer
+   
+	return SUCCESS;
 }
 
 int tfs_seek(fileDescriptor FD, int offset) {
