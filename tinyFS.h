@@ -11,6 +11,8 @@ different possible values */
 
 #define MAGIC_NUM 0x44
 
+#define MAX_FILE_NAME_LENGTH 8
+
 typedef int fileDescriptor;
 
 typedef struct {

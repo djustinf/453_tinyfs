@@ -7,4 +7,8 @@
 #define INIT_FILE_FAILURE -5
 
 #define MKFS_FAILURE -6
-#define MOUNT_ERR -7
+#define ERR_FILE_NAME_LENGTH -7
+#define ERR_TFS_MOUNT -8
+#define ERR_INVALID_TFS -9
+#define ERR_TFS_UNMOUNT -10
+#define ERR_TFS_NOT_MOUNTED -11

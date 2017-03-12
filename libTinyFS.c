@@ -6,6 +6,10 @@
 #include <errno.h>
 #include "tinyFS_errno.h"
 #include "tinyFS.h"
+#include "libDisk.h"
+
+int openFilesTable[256];
+int mountedDisk = NULL;
 
 int tfs_mkfs(char *filename, int nBytes) {
 	tfs_block buf;
@@ -37,6 +41,14 @@ int tfs_mkfs(char *filename, int nBytes) {
 	else {
 	    return MKFS_FAILURE;
 	}
+	
+	/*
+	// Initialize the open files table so that no files are open.
+	for (i = 0; i < 256; i++) {
+		openFilesTable[i] = 0;
+	}
+	*/
+	
 	return SUCCESS;
 }
 
@@ -62,19 +74,145 @@ void initSuperblock(tfs_block *buf, char firstFree) {
 }
 
 int tfs_mount(char *diskname) {
-	return 0;
+	char buf[BLOCKSIZE];
+	int diskNum;
+	
+	// TFS is already mounted.
+	if (mountedDisk) {
+		perror("mount: TFS already mounted");
+		return ERR_TFS_MOUNT;
+	}
+	
+	// Not mounted, so mount it and verify the TFS type.
+	else {
+		// Open the disk.
+		diskNum = openDisk(filename, 0);
+		
+		// Read the superblock.
+		readBlock(diskNum, 0, buf);
+		
+		// Check that the block is valid.
+		if (buf[1] != 0x44) {
+			perror("mount: TFS is invalid");
+			return ERR_INVALID_TFS;
+		}
+	}
+	
+	mountedDisk = filename;
+	
+	return SUCCESS;
 }
 
 int tfs_unmount(void) {
-	return 0;
+	// TFS is already unmounted, so throw error.
+	if (!mountedDisk) {
+		perror("unmount: TFS already unmounted");
+		return ERR_TFS_UNMOUNT;
+		
+	}
+	
+	// TFS is mounted, so unmount it.
+	else {
+		mountedDisk = NULL;
+	}
+	
+	return SUCCESS;
 }
 
 fileDescriptor tfs_openFile(char *name) {
-	return 0;
+	fileDescriptor fd;
+	int fileExists;
+	char buf[BLOCKSIZE];
+	int diskNum;
+	
+	// Make sure we have a valid name length.
+	if (strlen(name) > MAX_FILE_NAME_LENGTH) {
+		perror("openFile: File name too long");
+		return ERR_FILE_NAME_LENGTH;
+	}
+	
+	// If we have a mounted disk, check if the file is already open.
+	if (mountedDisk) {
+		// TODO: Check if the file is already open. If it is, return a FD to it.
+		// If file open.
+		// Else open the disk.
+	}
+	
+	// Disk is not already mounted, so we can't open the file.
+	else {
+		perror("openFile: TFS not mounted");
+		return ERR_TFS_NOT_MOUNTED;
+	}
+	
+	// Loop through the inodes and see if we have one that matches the specified name.
+	for (int i = 0; i < DEFAULT_DISK_SIZE/BLOCKSIZE && !fileExists; i++) {
+		// Read the block.
+		readBlock(diskNum, i, buf);
+		
+		// Check if this block is an inode.
+		if (buf[0] == 2) {
+			
+			// Now check if the names equal.
+			if(!strcmp(name, buff+4)) {
+				fileExists = 1;
+				// TODO: Get a FD to this file.
+				break;
+			}
+		}
+	}
+	
+	// Existing file wasn't found, so we need to create one.
+	if (!fileExists) {
+		// TODO: Implement inode init, giving it location of next free block.
+		for (int i = 0; i < DEFAULT_DISK_SIZE/BLOCKSIZE; i++) {
+			// Read the block.
+			readBlock(diskNum, i, buf);
+			
+			// Check if this block is free.
+			if (buf[0] == 4) {
+				break;
+			}
+		}
+		
+		// Buf now is the next free block, so let's initialize it.
+		buf[0] = 2;
+		
+		// TODO: First file extent?
+		//buf[2] = ?;
+		
+		// Next inode is null.
+		buf[3] = '\0';
+		
+		// Write the name.
+		memcpy(buf+4, name, strlen(name));
+		
+		// TODO: Write creation date, last modified date, and last accessed date.
+		
+		// Now write the new inode back.
+		writeBlock(diskNum, i, buf);
+	}
+	
+	// The file exists, we just need to open it.
+	else {
+		openFilesTable[fd] = 1;
+	}
+	
+	return fd;
 }
 
 int tfs_closeFile(fileDescriptor FD) {
-	return 0;
+	// We need to have an array to hold all open files. In this function, we'll simply need to mark the specified file as no longer open.
+	// e.g. a 1 indicates that the file is open, and a 0 indicates the file is closed.
+	
+	// File is open, so close it.
+	if (openFilesTable[FD]) {
+		openFilesTable[FD] = 0;
+		return SUCCESS;
+	}
+	// Not open, so we can't close it.
+	else {
+		return ERR_FILE_CLOSE;
+	}
 }
 
 int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
@@ -90,5 +228,4 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 }
 
 int tfs_seek(fileDescriptor FD, int offset) {
-	return 0;
 }
