@@ -10,6 +10,7 @@
 #include "libDisk.h"
 
 char *openFilesTable[9];
+int *openFilesLocation;
 char *mountedDisk = NULL;
 
 int tfs_mkfs(char *filename, int nBytes) {
@@ -92,8 +93,10 @@ int tfs_mount(char *diskname) {
 	}
 	mountedDisk = filename;
 	openFilesTable = (char*) malloc(sizeof(char*) * (unsigned char) buf[4]);
+	openFilesLocation = (int) malloc(sizeof(int) * (unsigned char) buf[4])
 	for (i = 0; i < (unsigned char) buf[4]; i++) {
 	    openFilesTable[i][0] = '\0';
+	    openFilesLocation[i] = 0;
 	}
 	return SUCCESS;
 }
@@ -109,6 +112,7 @@ int tfs_unmount(void) {
 	else {
 		mountedDisk = NULL;
 		free(openFilesTable);
+		free(openFilesLocation);
 	}
 	
 	return SUCCESS;
