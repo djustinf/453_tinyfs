@@ -9,8 +9,9 @@
 #include "libTinyFS.h"
 #include "libDisk.h"
 
-char *openFilesTable[9];
+char **openFilesTable;
 int *openFilesLocation;
+int numBlocks;
 char *mountedDisk = NULL;
 
 int tfs_mkfs(char *filename, int nBytes) {
@@ -57,6 +58,7 @@ void initSuperblock(tfs_block *buf, unsigned char firstFree, int nBytes) {
     int i;
     unsigned char blocks;
     blocks = (unsigned char) (nBytes / BLOCKSIZE);
+    numBlocks = blocks;
     buf->mem[0] = 1;
     buf->mem[1] = MAGIC_NUM;
     buf->mem[2] = firstFree;
@@ -111,9 +113,10 @@ int tfs_mount(char *diskname) {
 		}
 	}
 	mountedDisk = diskname;
-	openFilesTable = (char**) malloc(sizeof(char*) * (unsigned char) buf[4]);
-	openFilesLocation = (int*) malloc(sizeof(int) * (unsigned char) buf[4]);
-	for (i = 0; i < (unsigned char) buf[4]; i++) {
+	openFilesTable = (char**) malloc(sizeof(char*) * numBlocks);
+	openFilesLocation = (int*) malloc(sizeof(int) * numBlocks);
+	for (i = 0; i < numBlocks; i++) {
+	    openFilesTable[i] = (char*) malloc(sizeof(char) * 9);
 	    openFilesTable[i][0] = '\0';
 	    openFilesLocation[i] = 0;
 	}
@@ -132,6 +135,7 @@ int checkMountAndFile(fileDescriptor FD)
 }
 
 int tfs_unmount(void) {
+    int i;
 	// TFS is already unmounted, so throw error.
 	if (!mountedDisk) {
 		perror("unmount: TFS already unmounted");
@@ -141,8 +145,12 @@ int tfs_unmount(void) {
 	// TFS is mounted, so unmount it.
 	else {
 		mountedDisk = NULL;
+		for (i = 0; i < numBlocks; i++) {
+		    free(openFilesTable[i]);
+		}
 		free(openFilesTable);
 		free(openFilesLocation);
+		numBlocks = -1;
 	}
 	
 	return SUCCESS;
@@ -173,7 +181,7 @@ fileDescriptor tfs_openFile(char *name) {
 		readBlock(diskNum, 0, &(buf.mem));
 		
 		// Get the number of blocks from the superblock.
-		numFiles = buf.mem[4] - 1;
+		numFiles = numBlocks - 1;
 		
 		// Get the address of the first free block.
 		firstFree = buf.mem[2];
@@ -181,7 +189,7 @@ fileDescriptor tfs_openFile(char *name) {
 		// Use that as the upper bound for the open files table so we can iterate through it.
 		// Iterate through the table, and check if we find an entry that equals our name. 
 		for (int i = 0; i < numFiles; i++) {
-			strcpy(&tempName, openFilesTable[i]);
+			strcpy(tempName, openFilesTable[i]);
 			
 			// If we find one, return the index of that as the FD.
 			if (!strcmp(tempName, name)) {
@@ -257,33 +265,18 @@ int tfs_closeFile(fileDescriptor FD) {
 }
 
 int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
-
-    int data[BLOCK_SIZE], ret;
    tfs_block block;
-
    //check if file is mounted and that file exists
-   if( (ret = checkMountAndFile) < 0)
-      return ret;
 
    //get the data at FD
 
    //check read-only
-   if ((curIdx = getCurIdx(FD)) < 0)
-      return ERR_WRITE;
 
    //write the data
 
    //increment cursor
 
    //update inode
-
-   if (writeBlock(FD, tinyFS.inode[],block))
-   {
-      return ERR_WRITE;
-   }
-   tinyFS.curIdx++;
-   *buffer = data;
-
 	return SUCCESS;
 }
 
