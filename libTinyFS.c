@@ -9,6 +9,7 @@
 #include "libTinyFS.h"
 #include "libDisk.h"
 
+int diskFD;
 char **openFilesTable;
 int *openFilesLocation;
 int numBlocks;
@@ -62,7 +63,9 @@ void initSuperblock(tfs_block *buf, unsigned char firstFree, int nBytes) {
     int i;
     unsigned char blocks;
     blocks = (unsigned char) (nBytes / BLOCKSIZE);
+
     numBlocks = blocks;
+
     buf->mem[0] = 1;
     buf->mem[1] = MAGIC_NUM;
     buf->mem[2] = firstFree;
@@ -88,6 +91,8 @@ void initInodeblock(tfs_block *buf, char* name) {
 			name++;
 	}
 
+   buf->mem[i] = 0;
+
 	// TODO: Write creation date, last modified date, and last accessed date.
 	// When we first create the file, all of these will be equal.
 }
@@ -106,6 +111,7 @@ int tfs_mount(char *diskname) {
 	else {
 		// Open the disk.
 		diskNum = openDisk(diskname, 0);
+      diskFD = diskNum;
 		
 		// Read the superblock.
 		readBlock(diskNum, 0, &buf);
@@ -151,6 +157,7 @@ int tfs_unmount(void) {
 	// TFS is mounted, so unmount it.
 	else {
 		mountedDisk = NULL;
+      diskFD = -1;
 		for (i = 0; i < numBlocks; i++) {
 		    free(openFilesTable[i]);
 		}
@@ -165,11 +172,13 @@ int tfs_unmount(void) {
 fileDescriptor tfs_openFile(char *name) {
 	fileDescriptor fd;
 	int fileExists;
-	tfs_block buf;
+	tfs_block buf, super;
 	int diskNum;
 	unsigned char numFiles;
 	char tempName[9];
 	unsigned char firstFree;
+
+   printf("openFile\n");
 	
 	// Make sure we have a valid name length.
 	if ((strlen(name) > MAX_FILE_NAME_LENGTH) || !strlen(name)) {
@@ -195,12 +204,18 @@ fileDescriptor tfs_openFile(char *name) {
 		// Use that as the upper bound for the open files table so we can iterate through it.
 		// Iterate through the table, and check if we find an entry that equals our name. 
 		for (int i = 0; i < numFiles; i++) {
-			strcpy(tempName, openFilesTable[i]);
-			
-			// If we find one, return the index of that as the FD.
-			if (!strcmp(tempName, name)) {
-				return i;
-			}	
+         //printf("%d\n", i);
+
+
+         if(openFilesTable[i] != NULL)
+         {
+			   strcpy(tempName, openFilesTable[i]);
+
+			   // If we find one, return the index of that as the FD.
+			   if (!strcmp(tempName, name)) {
+				   return i;
+			   }
+         }	
 		}
 	}
 	
@@ -230,18 +245,30 @@ fileDescriptor tfs_openFile(char *name) {
 	
 	// Existing file wasn't found, so we need to create one.
 	if (!fileExists) {
+      
+      readBlock(diskNum, 0, &(super.mem));
 		
 		// Read in the first free block.
 		// TODO: Pointer issue?
 		readBlock(diskNum, firstFree, &(buf.mem));
 		
+      super.mem[2] = buf.mem[2];
+
+      writeBlock(diskNum, 0, &(super.mem));
+
 		// Init the inode block at that free block.
 		// TODO: Pointer issue?
 		initInodeblock(&buf, name);
 		
 		// Now write the new inode back.
 		// Pointer issue?
+      fd = firstFree;
+
 		writeBlock(diskNum, fd, &(buf.mem));
+      strcpy(openFilesTable[fd], name);
+		
+		// Reset the file descriptor location.
+		openFilesLocation[fd] = 0;
 	}
 	
 	// The file exists, we just need to open it.
@@ -253,7 +280,6 @@ fileDescriptor tfs_openFile(char *name) {
 		
 		// TODO: Set last accessed time.
 	}
-	
 	return fd;
 }
 
@@ -293,6 +319,8 @@ int tfs_deleteFile(fileDescriptor FD) {
 int tfs_readByte(fileDescriptor FD, char *buffer) {
     int ret, idx;
    tfs_block inode, fileEx;
+
+   printf("readByte\n");
    
    //check if file is mounted and that file exists
    if((ret = checkMountAndFile(FD)) < 0)
@@ -302,13 +330,16 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    idx = openFilesLocation[FD];
 
    //read from inode to get the first ref to file extent
-   if (readBlock(FD, 0, &(inode.mem)) < 0)
+   if (readBlock(diskFD, FD, &(inode.mem)) < 0)
+   {
+      fprintf(stderr, "inode\n");
       return ERR_READ;
-   
+   }
    //get the location of the file extent
 
-   if (readBlock(FD, inode.mem[2], &(fileEx.mem)) < 0)
+   if (readBlock(diskFD, FD, &(fileEx.mem)) < 0)
    {
+      fprintf(stderr, "file extent\n");
       return ERR_READ;
    }
  
@@ -317,7 +348,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    {
       ret = fileEx.mem[2];
 
-      if (readBlock(FD, ret, &(fileEx.mem)) < 0)
+      if (readBlock(diskFD, ret, &(fileEx.mem)) < 0)
       {
          return ERR_READ;
       }
@@ -328,7 +359,6 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    if (idx <= 252)
    {
       return ERR_INVALID_TFS;      
-      return ERR_WRITE;
    }
 
    //get the reference to the first inode
