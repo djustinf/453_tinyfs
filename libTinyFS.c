@@ -24,7 +24,9 @@ int tfs_mkfs(char *filename, int nBytes) {
 		}
 	    /* init and write superblock */
 	    initSuperblock(&buf, 1, nBytes);
-		if (write(fd, buf.mem, 1) < BLOCKSIZE) {
+		 //printf("\nMKFS: %c", buf.mem[1]);
+		//if (write(fd, buf.mem, 1) < BLOCKSIZE) {
+		if (writeBlock(fd, traversed, buf.mem) < 0) {
 			return MKFS_FAILURE;
 		}
         while ((++traversed * BLOCKSIZE) < nBytes) {
@@ -33,7 +35,9 @@ int tfs_mkfs(char *filename, int nBytes) {
 		        initFreeblock(&buf, '\0');
 		    else
 		        initFreeblock(&buf, traversed);
-		    if (write(fd, buf.mem, 1) < BLOCKSIZE) {
+		    //if (write(fd, buf.mem, 1) < BLOCKSIZE) {
+			if (writeBlock(fd, traversed, buf.mem) < 0) {
+			
 			    return MKFS_FAILURE;
 		    }
         }
@@ -104,7 +108,9 @@ int tfs_mount(char *diskname) {
 		diskNum = openDisk(diskname, 0);
 		
 		// Read the superblock.
-		readBlock(diskNum, 0, buf);
+		readBlock(diskNum, 0, &buf);
+		
+		//printf("\nDEBUG: %c", buf[1]);
 		
 		// Check that the block is valid.
 		if (buf[1] != 0x44) {
@@ -296,12 +302,12 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    idx = openFilesLocation[FD];
 
    //read from inode to get the first ref to file extent
-   if (readBlock(FD, 0, inode) < 0)
+   if (readBlock(FD, 0, &(inode.mem)) < 0)
       return ERR_READ;
    
    //get the location of the file extent
 
-   if (readBlock(FD, inode[2], fileEx) < 0)
+   if (readBlock(FD, inode.mem[2], &(fileEx.mem)) < 0)
    {
       return ERR_READ;
    }
@@ -309,9 +315,9 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    
    while ((idx > 252) && (fileEx.mem[2] != '\0'))
    {
-      ret = fileEx[2];
+      ret = fileEx.mem[2];
 
-      if (readBlock(FD, retm fileEx) < 0)
+      if (readBlock(FD, ret, &(fileEx.mem)) < 0)
       {
          return ERR_READ;
       }
@@ -326,7 +332,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    }
 
    //get the reference to the first inode
-    memcpy(buffer, fileEx + 4 + idx, sizeof(char));
+    memcpy(buffer, fileEx.mem + 4 + idx, sizeof(char));
 
    //update inode
    openFilesLocation[FD]++;
