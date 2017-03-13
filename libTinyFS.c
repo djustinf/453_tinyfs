@@ -313,7 +313,42 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
 }
 
 int tfs_deleteFile(fileDescriptor FD) {
-	return 0;
+    unsigned char numFiles, position;
+    tfs_block buf, lastFree;
+    //ensure that disk is mounted
+    if (mountedDisk == NULL)
+        return ERR_TFS_NOT_MOUNTED;
+
+    //read in inode
+    readBlock(diskFD, FD, &(buf.mem));
+    if (buf.mem[0] != 2)
+        return ERR_INVALID_INODE;
+
+    //get last free block
+    readBlock(diskFD, 0, &(lastFree.mem));
+    while (lastFree.mem[2] != '\0') {
+        readBlock(diskFD, lastFree.mem[2], &(lastFree.mem));
+    }
+
+    //add inode to free chain of blocks
+    lastFree.mem[2] = (unsigned char) FD;
+
+    //add all blocks to free chain except for last one
+    while (buf.mem[2] != '\0') {
+        initFreeblock(&buf, buf.mem[2]);
+        writeBlock(diskFD, lastFree.mem[2], buf.mem);
+        lastFree = buf;
+        readBlock(diskFD, buf.mem[2], &(buf.mem));
+    }
+
+    //add last one to chain
+    initFreeblock(&buf, '\0');
+    writeBlock(diskFD, lastFree.mem[2], buf.mem);
+
+    openFilesLocation[FD] = 0;
+    openFilesTable[FD] = '\0';
+
+	return SUCCESS;
 }
 
 int tfs_readByte(fileDescriptor FD, char *buffer) {
