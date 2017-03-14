@@ -296,19 +296,93 @@ int tfs_closeFile(fileDescriptor FD) {
 	}
 }
 
+int getNumBlocks(int size)
+{
+   int blocks = size / BLOCKSIZE;
+
+   if (size % BLOCKSIZE)
+      blocks++;
+
+   return blocks;
+}
+
 int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
-   tfs_block block;
-   //check if file is mounted and that file exists
+    int ret, idx, freeBlocks = 0, reqBlocks = getNumBlocks(size), offset = 0;
+   tfs_block super, inode, fileEx, fBlock;
 
-   //get the data at FD
+   printf("tfs_writeFile, diskFD is %d\n", diskFD);
 
-   //check read-only
+   //check if file is mounted and that the file exists
+   if((ret = checkMountAndFile(FD)) < 0)
+      return ret;
 
-   //write the data
+   //get the super block to get the current number of free blocks
+   if(readBlock(diskFD, 0, &(super.mem)) < 0)
+      return ERR_READ;
 
-   //increment cursor
+   freeBlocks = super.mem[4];
 
-   //update inode
+   //check to see if we have enough space to write the data
+   if (numBlocks - freeBlocks  <  reqBlocks)
+      return ERR_INVALID_SPACE;
+
+   //read from inode to get the first ref to file extent
+   if(readBlock(diskFD, FD, &(inode.mem)) < 0)
+   {
+      fprintf(stderr, "writeFile inode\n");
+      return ERR_READ;
+   }
+
+   //get the location of the file extent
+   if (readBlock(diskFD, inode.mem[2], &(fileEx.mem)) < 0)
+   {
+      fprintf(stderr, "writeFile file extent\n");
+      return ERR_READ;
+   }
+
+   //deallocate data blocks
+   while ((fileEx.mem[2] != '\0'))
+   {
+      //get the address of the next free block
+      ret = fileEx.mem[3];
+
+      //get the freeBlock at the address
+      if(readBlock(diskFD, ret, &(fBlock.mem)) < 0)
+         return ERR_READ;
+
+      //marks this as free
+      fBlock.mem[2] = idx;
+
+      if (writeBlock(diskFD, ret, &(fBlock.mem)) < 0)
+         return ERR_WRITE;
+
+      super.mem[2] = ret;
+      if (writeBlock(diskFD, 0, &(super.mem)) < 0)
+         return ERR_WRITE;
+
+      //read the next inode
+      if (readBlock(diskFD, fileEx.mem[2], &(fileEx.mem)) < 0)
+         return ERR_READ;
+      
+   }
+   //write new data
+   for (idx = 0; idx < reqBlocks -1;idx++)
+   {
+      //update inode
+      inode.mem[2] = idx;
+      inode.mem[3] = idx + 1;
+
+      //write to file extent
+      fileEx.mem[2] = idx;
+      fileEx.mem[3] = 0;
+      memcpy(fileEx.mem + 4, buffer + offset, 252);
+      
+      if (writeBlock(diskFD, idx, &(fileEx.mem)) < 0)
+         return ERR_WRITE;
+      offset += 252;
+   }
+  
+	return SUCCESS;
 	return SUCCESS;
 }
 
@@ -372,7 +446,8 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    }
    //get the location of the file extent
 
-   if (readBlock(diskFD, FD, &(fileEx.mem)) < 0)
+   //if (readBlock(diskFD, FD, &(fileEx.mem)) < 0)
+   if (readBlock(diskFD, inode.mem[2], &(fileEx.mem)) < 0)
    {
       fprintf(stderr, "file extent\n");
       return ERR_READ;
