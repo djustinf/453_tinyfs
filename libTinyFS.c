@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include "tinyFS_errno.h"
+#include "tinyFS.h"
 #include "libTinyFS.h"
 #include "libDisk.h"
 
@@ -192,7 +193,6 @@ fileDescriptor tfs_openFile(char *name) {
 		diskNum = openDisk(mountedDisk, 0);
 		
 		// Read the superblock from the disk. 
-		// TODO: Pointer issue?
 		readBlock(diskNum, 0, &(buf.mem));
 		
 		// Get the number of blocks from the superblock.
@@ -234,7 +234,6 @@ fileDescriptor tfs_openFile(char *name) {
 		if (buf.mem[0] == 2) {
 			
 			// Now check if the names equal.
-			// TODO: Pointer issue?
 			if(!strcmp(name, buf.mem+4)) {
 				fileExists = 1;
 				fd = i;
@@ -249,7 +248,6 @@ fileDescriptor tfs_openFile(char *name) {
       readBlock(diskNum, 0, &(super.mem));
 		
 		// Read in the first free block.
-		// TODO: Pointer issue?
 		readBlock(diskNum, firstFree, &(buf.mem));
 		
       super.mem[2] = buf.mem[2];
@@ -257,7 +255,6 @@ fileDescriptor tfs_openFile(char *name) {
       writeBlock(diskNum, 0, &(super.mem));
 
 		// Init the inode block at that free block.
-		// TODO: Pointer issue?
 		initInodeblock(&buf, name);
 		
 		// Now write the new inode back.
@@ -420,7 +417,7 @@ int tfs_deleteFile(fileDescriptor FD) {
     writeBlock(diskFD, lastFree.mem[2], buf.mem);
 
     openFilesLocation[FD] = 0;
-    openFilesTable[FD] = '\0';
+    openFilesTable[FD] = "\0";
 
 	return SUCCESS;
 }
@@ -482,9 +479,24 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 
 int tfs_seek(fileDescriptor FD, int offset) {
 	// Check if FD is in list of open files. 
-	// If it isn't, we can't seek so return error.
+	if (openFilesTable[FD] == '\0') {
+		perror("seek: FD is not in list of open files");
+		return ERR_SEEK;
+	}
 	
-	// Check if offset puts you past last file extent.
+	// TODO: Check if offset puts you past last file extent.
+	
+	// Make sure the disk is mounted.
+	if (!mountedDisk) {
+		perror("seek: disk is not mounted");
+		return ERR_SEEK;
+	}
+	
+	// Check that we have a valid offset.
+	if (offset < 0) {
+		perror("seek: offset is invalid");
+		return ERR_SEEK;
+	}
 	
 	// If neither of these fails, set the FD to the offset.
 	openFilesLocation[FD] = offset;

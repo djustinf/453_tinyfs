@@ -4,3 +4,5 @@ diskTest
 *.dsk
 *.idea
 *.exe
+
+.DS_Store
