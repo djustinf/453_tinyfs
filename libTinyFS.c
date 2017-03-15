@@ -408,11 +408,13 @@ int tfs_deleteFile(fileDescriptor FD) {
     //get last free block
     readBlock(diskFD, 0, &(lastFree.mem));
     while (lastFree.mem[2] != '\0') {
+		position = lastFree.mem[2];
         readBlock(diskFD, lastFree.mem[2], &(lastFree.mem));
     }
 
     //add inode to free chain of blocks
     lastFree.mem[2] = (unsigned char) FD;
+	writeBlock(diskFD, position, lastFree.mem);
 
     //add all blocks to free chain except for last one
     while (buf.mem[2] != '\0') {
