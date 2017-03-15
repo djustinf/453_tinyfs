@@ -14,6 +14,7 @@ int diskFD;
 int freeBlocks;
 char **openFilesTable;
 int *openFilesLocation;
+int *fileUsed;
 int numBlocks;
 char *mountedDisk = NULL;
 
@@ -129,6 +130,7 @@ int tfs_mount(char *diskname) {
 	mountedDisk = diskname;
 	openFilesTable = (char**) malloc(sizeof(char*) * numBlocks);
 	openFilesLocation = (int*) malloc(sizeof(int) * numBlocks);
+    fileUsed = (int*) calloc(numBlocks, sizeof(int));
 	for (i = 0; i < numBlocks; i++) {
 	    openFilesTable[i] = (char*) malloc(sizeof(char) * 9);
 	    openFilesTable[i][0] = '\0';
@@ -309,88 +311,114 @@ int getNumBlocks(int size)
 }
 
 int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
+
     int ret, idx, reqBlocks = getNumBlocks(size), offset = 0;
-   tfs_block super, inode, fileEx, fBlock, addr;
-   
-   char file_name[9];
+    tfs_block super, inode, fileEx, fBlock;
+    char file_name[9];
 
-   printf("tfs_writeFile, diskFD is %d\n", diskFD);
+    printf("tfs_writeFile, diskFD is %d, FD: %d\n", diskFD, FD);
 
-   //check if file is mounted and that the file exists
-   if((ret = checkMountAndFile(FD)) < 0)
-      return ret;
+    //check if file is mounted and that the file exists
+    if((ret = checkMountAndFile(FD)) < 0)
+       return ret;
 
-   //get the super block to get the current number of free blocks
-   if(readBlock(diskFD, 0, &(super.mem)) < 0)
-   {
-      perror("Error: reading super block failed\n");
-      return ERR_READ;
-   }
+    //get the super block to get the current number of free blocks
+    if(readBlock(diskFD, 0, &(super.mem)) < 0)
+    {
+       perror("Error: reading super block failed\n");
+       return ERR_READ;
+    }
+    fprintf(stdout, "read superBlock, type is %d\n", super.mem[0]);
+    //check to see if we have enough space to write the data
+    if (freeBlocks  <  reqBlocks)
+    {
+       fprintf(stderr, "Error: not enough space available, numBlocks %d, freeBlocks %d, reqBlocks %d\n",
+          numBlocks, freeBlocks, reqBlocks);
 
-   //check to see if we have enough space to write the data
-   if (freeBlocks  <  reqBlocks)
-   {
-      fprintf(stderr, "Error: not enough space available, numBlocks %d, freeBlocks %d, reqBlocks %d\n",
-         numBlocks, freeBlocks, reqBlocks);
+       return ERR_INVALID_SPACE;
+    }
+    idx = openFilesLocation[FD];
+    fprintf(stdout, "idx: %d, super.mem[3]: %d\n", idx, super.mem[3]);
+    //read from inode to get the first ref to file extent
+    strcpy(file_name, openFilesTable[FD]);
+    printf("file is %s, length %d\n\n", file_name, (int)strlen(file_name));
 
-      return ERR_INVALID_SPACE;
-   }
-   //read from inode to get the first ref to file extent
-   if(readBlock(diskFD, FD, &(inode.mem)) < 0)
-   {
-      fprintf(stderr, "writeFile inode\n");
-      return ERR_READ;
-   }
+     if (fileUsed[FD])
+     {
+        //TODO: save creation time
+        //deallocate data blocks
+        if (tfs_deleteFile(FD) < 0)
+           fprintf(stderr, "could not delete file, FD is %d\n\n", FD);
 
-   //get the location of the file extent
-   /*if (readBlock(diskFD, inode.mem[2], &(fileEx.mem)) < 0)
-   {
-      fprintf(stderr, "writeFile file extent\n");
-      return ERR_READ;
-   }*/
+        if(readBlock(diskFD, FD, &(inode.mem)) < 0)
+        {
+            fprintf(stderr, "writeFile inode\n");
+            return ERR_READ;
+        }
+        fprintf(stdout, "read inodeBlock, type is %d\n", inode.mem[0]);
 
-   //TODO: save creation time
-   strcpy(file_name, inode.mem + 5);
+        //get the super block to get the current number of free blocks
+        if(readBlock(diskFD, 0, &(super.mem)) < 0)
+        {
+            perror("Error: reading super block failed\n");
+            return ERR_READ;
+        }
 
-   //deallocate data blocks
-   tfs_deleteFile(FD);
+        //update the inode block
+        strcpy(inode.mem + 5, file_name);
+        inode.mem[14] = reqBlocks;
+        writeBlock(diskFD, super.mem[3], &(super.mem));
+    }
+    else
+    {
+        //create an inode block
+        initInodeblock(&inode, file_name);
+        //assign the the first free block as the current inode
+        inode.mem[2] = super.mem[2];
+        strcpy(inode.mem + 5, file_name);
+    }
+    offset = 252;
+    ret = super.mem[2];
+    for (idx = 0; idx < reqBlocks; idx += BLOCKSIZE)
+    {
+        //get the current first freeBlock
+        if (writeBlock(diskFD, super.mem[4], &(fBlock.mem)) < 0)
+        {
+            fprintf(stderr, "failed to write to freeBlock\n");
+            return ERR_WRITE;
+        }
 
-   //open the file
-   tfs_openFile(file_name);
-   
+        //get the first free block
+      
+     
+        fileEx.mem[0] = 3;
+        fileEx.mem[1] = MAGIC_NUM;
+        fileEx.mem[2] = ret + 1;
+        memcpy(fileEx.mem + 4, buffer + offset, 252);
+        
+        if (writeBlock(diskFD, ret, &(fileEx.mem)) < 0)
+        {
+            fprintf(stderr, "failed to write to fileEx\n\n");
+        } 
+        ret++;
+        offset += 252;
+    }
 
-   //ref to free block
-   super.mem[2] = reqBlocks;
-   writeBlock(diskFD, 0, &(super.mem));
+    //update super
+    super.mem[2] = idx;
 
-   //update the inode block
-   strcpy(inode.mem + 5, file_name);
-   inode.mem[14] = reqBlocks;
-   writeBlock(diskFD, super.mem[3], &(super.mem));
+    for(idx = reqBlocks; idx < numBlocks; idx += BLOCKSIZE)
+    {
+        initFreeblock(&fBlock, idx);
+        if (writeBlock(diskFD, idx, &(inode.mem)) < 0)
+            fprintf(stderr, "failed to update free block");
+    }
 
-   offset = 252;
-
-   for (idx = reqBlocks; idx < numBlocks; idx += BLOCKSIZE)
-   {
-      initFreeblock(&fBlock, idx);
-      if (writeBlock(diskFD, idx, &(fBlock.mem)) < 0)
-      {
-         fprintf(stderr, "failed to write to freeBlock");
-         return ERR_WRITE;
-      }
-
-      ret = fileEx.mem[2];
-      fileEx.mem[2] = ret + 1;
-      memcpy(fileEx.mem + 4, buffer + offset, 252);
-      offset += 252;
-
-      //write the data in the file extent
-      if(writeBlock(diskFD, ret, &(fileEx.mem)))
-      {
-         fprintf(stderr, "Failed to write to fileEx");
-         return ERR_WRITE;  
-      }
-   }
+    if (writeBlock(diskFD, 0, &(super.mem)) < 0)
+    {
+        fprintf(stderr, "failed to update the super block\n");
+    }
+    fileUsed[FD] = 1;
 }
 
 int tfs_deleteFile(fileDescriptor FD) {
@@ -403,8 +431,10 @@ int tfs_deleteFile(fileDescriptor FD) {
     //read in inode
     readBlock(diskFD, FD, &(buf.mem));
     if (buf.mem[0] != 2)
+    {
+        fprintf(stderr, "block is not inode, type: %d, FD %d\n\n", buf.mem[0], FD);
         return ERR_INVALID_INODE;
-
+    }
     //get last free block
     readBlock(diskFD, 0, &(lastFree.mem));
     while (lastFree.mem[2] != '\0') {
@@ -432,6 +462,7 @@ int tfs_deleteFile(fileDescriptor FD) {
 
     openFilesLocation[FD] = 0;
     openFilesTable[FD] = "\0";
+    fileUsed[FD] = 0;
 
 	return SUCCESS;
 }
