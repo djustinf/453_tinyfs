@@ -416,6 +416,7 @@ int tfs_deleteFile(fileDescriptor FD) {
 
     //add all blocks to free chain except for last one
     while (buf.mem[2] != '\0') {
+		freeBlocks++;
         initFreeblock(&buf, buf.mem[2]);
         writeBlock(diskFD, lastFree.mem[2], buf.mem);
         lastFree = buf;
@@ -423,6 +424,7 @@ int tfs_deleteFile(fileDescriptor FD) {
     }
 
     //add last one to chain
+	freeBlocks++;
     initFreeblock(&buf, '\0');
     writeBlock(diskFD, lastFree.mem[2], buf.mem);
 
@@ -513,4 +515,39 @@ int tfs_seek(fileDescriptor FD, int offset) {
 	openFilesLocation[FD] = offset;
 	
 	return SUCCESS;
+}
+
+int tfs_rename(fileDescriptor FD, char* newName) {
+	tfs_block buf;
+	//check for file name length
+	if (strlen(newName) <= 8 || strlen(newName) == 0) {
+		perror("rename: invalid name");
+		return ERR_FILE_NAME_LENGTH;
+	}
+	//check if file is open
+	if (openFilesTable[FD] == '\0') {
+		perror("rename: file closed");
+		return ERR_FILE_CLOSED;
+	}
+
+	//read in inode of file to rename
+	readBlock(diskFD, FD, &(buf.mem));
+	//copy in new name
+	strncpy(buf.mem[5], newName, 9);
+	//write block back with modifications
+	writeBlock(diskFD, FD, buf.mem);
+}
+
+void tfs_readdir() {
+	int i;
+	tfs_block buf;
+
+	printf("Directory: root\n");
+	for (i = 1; i < freeBlocks; i++) {
+		readBlock(diskFD, i, &(buf.mem));
+		//if it's a inode, print the name and size
+		if (buf.mem[0] == 2) {
+			printf("%s : %d blocks\n", &(buf.mem[5]), buf.mem[14]);
+		}
+	}
 }
