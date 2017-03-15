@@ -533,7 +533,7 @@ int tfs_rename(fileDescriptor FD, char* newName) {
 	//read in inode of file to rename
 	readBlock(diskFD, FD, &(buf.mem));
 	//copy in new name
-	strncpy(buf.mem[5], newName, 9);
+	strncpy(&(buf.mem[5]), newName, 9);
 	strncpy(openFilesTable[FD], newName, 9);
 	//write block back with modifications
 	writeBlock(diskFD, FD, buf.mem);
