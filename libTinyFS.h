@@ -6,6 +6,8 @@ typedef struct {
 	char mem[BLOCKSIZE];
 } tfs_block;
 
+
+time_t tfs_readFileInfo(fileDescriptor FD);
 int tfs_rename(fileDescriptor FD, char* newName);
 void tfs_readdir();
 void initFreeblock(tfs_block *block, unsigned char nextFree);

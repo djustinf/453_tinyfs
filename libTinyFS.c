@@ -186,6 +186,7 @@ fileDescriptor tfs_openFile(char *name) {
 	char tempName[9];
 	unsigned char firstFree;
   fileExists = 0;
+  timt_t curTime;
 
    printf("openFile\n");
 	
@@ -266,11 +267,23 @@ fileDescriptor tfs_openFile(char *name) {
 		initInodeblock(&buf, name);
 		
 		// Now write the new inode back.
-		// Pointer issue?
-      fd = firstFree;
-
+    fd = firstFree;
+    
+    // Get the current time.
+    time(&curTime);
+    
+    // Write creation date.
+    memcpy(&buf->mem[18], &time, sizeof(time_t));
+    
+    // Write last modified date.
+    memcpy(&buf->mem[18 + sizeof(time_t)], &time, sizeof(time_t));
+    
+    // Write last accessed date.
+    memcpy(&buf->mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
+    
 		writeBlock(diskNum, fd, &(buf.mem));
-      strcpy(openFilesTable[fd], name);
+    
+    strcpy(openFilesTable[fd], name);
 		
 		// Reset the file descriptor location.
 		openFilesLocation[fd] = 0;
@@ -283,7 +296,11 @@ fileDescriptor tfs_openFile(char *name) {
 		// Reset the file descriptor location.
 		openFilesLocation[fd] = 0;
 		
-		// TODO: Set last accessed time.
+    // Get the current time.
+    time(&curTime);
+    
+    // Write last accessed date.
+    memcpy(&buf->mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
 	}
 	return fd;
 }
@@ -316,6 +333,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     int ret, idx, reqBlocks = getNumBlocks(size), offset = 0;
     tfs_block super, inode, fileEx, fBlock;
     char file_name[9];
+    time_t curTime;
 
     printf("tfs_writeFile, diskFD is %d, FD: %d\n", diskFD, FD);
 
@@ -368,6 +386,16 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         //update the inode block
         strcpy(inode.mem + 5, file_name);
         inode.mem[14] = reqBlocks;
+        
+        // Get the time. All timestamps will be equal to this intitially.
+        time(&curTime);
+        
+        // Write last modified date.
+        memcpy(inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
+        
+        // Write last accessed date.
+        memcpy(inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
+        
         writeBlock(diskFD, super.mem[3], &(super.mem));
     }
     else
@@ -377,6 +405,15 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         //assign the the first free block as the current inode
         inode.mem[2] = super.mem[2];
         strcpy(inode.mem + 5, file_name);
+        
+        // Get the time. All timestamps will be equal to this intitially.
+        time(&curTime);
+        
+        // Write last modified date.
+        memcpy(inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
+        
+        // Write last accessed date.
+        memcpy(inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
     }
     offset = 0;
     ret = super.mem[2];
@@ -473,6 +510,7 @@ int tfs_deleteFile(fileDescriptor FD) {
 int tfs_readByte(fileDescriptor FD, char *buffer) {
     int ret, idx;
    tfs_block inode, fileEx;
+    time_t curTime;
 
    printf("readByte\n");
    
@@ -499,6 +537,11 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
       return ERR_READ;
    }
  
+  // Get the time. All timestamps will be equal to this intitially.
+  time(&curTime);
+  
+  // Write last accessed date.
+  memcpy(inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
    
    while ((idx > 252) && (fileEx.mem[2] != '\0'))
    {
@@ -589,4 +632,12 @@ void tfs_readdir() {
 			printf("%s : %d blocks\n", &(buf.mem[5]), buf.mem[14]);
 		}
 	}
+}
+
+time_t tfs_readFileInfo(fileDescriptor FD) {
+  time_t curTime;
+  
+  time(&curTime);
+  
+  return curTime;
 }
