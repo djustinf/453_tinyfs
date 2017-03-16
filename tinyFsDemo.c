@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
             return -1;
         }
     }
-    printf("%s: mounted\n");
+    printf("%s: mounted\n", DEFAULT_DISK_NAME);
     waitForEnter();
     printf("Attempting to open files\n");
     FD1 = tfs_openFile("File1");
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     else
         printf("File2 opened\n");
     
-    FD1 = tfs_openFile("File3");
+    FD3 = tfs_openFile("File3");
     if (FD3 < 0)
         perror("failed to open File3");
     else

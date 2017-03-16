@@ -84,6 +84,8 @@ void initInodeblock(tfs_block *buf, char* name) {
 	// Set block type.
 	buf->mem[0] = 2;
 
+    buf->mem[2] = '\0';
+
 	// Next inode is null since this is the newest inode.
 	buf->mem[3] = '\0';
 
@@ -213,11 +215,11 @@ fileDescriptor tfs_openFile(char *name) {
 
 		// Use that as the upper bound for the open files table so we can iterate through it.
 		// Iterate through the table, and check if we find an entry that equals our name.
-		for (int i = 0; i < numFiles; i++) {
+		for (int i = 1; i < numFiles; i++) {
          //printf("%d\n", i);
 
 
-         if(openFilesTable[i] != NULL)
+         if(openFilesTable[i] != '\0')
          {
 			   strcpy(tempName, openFilesTable[i]);
 
@@ -255,20 +257,28 @@ fileDescriptor tfs_openFile(char *name) {
 	// Existing file wasn't found, so we need to create one.
 	if (!fileExists) {
 
-      readBlock(diskNum, 0, &(super.mem));
+        // Read in the super block.
+        readBlock(diskNum, 0, &(super.mem));
 
 		// Read in the first free block.
 		readBlock(diskNum, firstFree, &(buf.mem));
 
-      super.mem[2] = buf.mem[2];
+        // Get reference.
+        super.mem[2] = buf.mem[2];
 
-      writeBlock(diskNum, 0, &(super.mem));
-
-		// Init the inode block at that free block.
+        // Init the inode block at that free block.
 		initInodeblock(&buf, name);
 
-		// Now write the new inode back.
-    fd = firstFree;
+        // Update the first free in the super block.
+        writeBlock(diskNum, 0, &(super.mem));
+
+		
+
+		// NGet a file descriptor to the next free block.
+        fd = firstFree;
+
+    // Update the first free in the super block.
+
 
     // Get the current time.
     time(&curTime);
