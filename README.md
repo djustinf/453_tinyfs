@@ -18,7 +18,9 @@
  - Byte 5-12: file name
  - Byte 13: null term
  - Byte 14: file size (in blocks)
- - Byte 18-UNKNOWN: 3 timestamps (created, modified, accessed)
+ - Byte 18-26: Creation timestamp
+ - Byte 26-34: Last modified timestamp
+ - Byte 34-42: Last accessed timestamp
 
 ## File Extent
  - Contains file data
