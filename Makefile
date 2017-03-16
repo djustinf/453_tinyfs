@@ -1,5 +1,3 @@
-
-
 CC = gcc
 CFLAGS = -g -Wall -Werror
 
@@ -17,5 +15,8 @@ libTinyFS: libDisk libTinyFS.c libTinyFS.h libTinyFS.o
 libDisk: libDisk.c libDisk.h libDisk.o TinyFS_errno.h
 	$(CC) $(CFLAGS) -c libDisk.c
 
+tfsTest: libTinyFS tfsTest.c 
+	$(CC) $(CFLAGS) -o tfsTest libDisk.o libTinyFS.o tfsTest.c
+
 clean:
-	rm -f tinyFsDemo libDisk.o libTinyFS.o tinyFSDisk
+	rm -f tinyFsDemo libDisk.o libTinyFS.o tinyFSDisk tfsTest tfsTest.dSYM tinyFsDemo.dSYM

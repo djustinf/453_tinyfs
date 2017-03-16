@@ -41,7 +41,6 @@ main ()
   char phrase2[] = "(b) file content ";
 
   fileDescriptor aFD, bFD;
-  int i, returnValue;
 
 /* try to mount the disk */
   if (tfs_mount (DEFAULT_DISK_NAME) < 0)	/* if mount fails */

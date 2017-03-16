@@ -185,6 +185,7 @@ fileDescriptor tfs_openFile(char *name) {
 	unsigned char numFiles;
 	char tempName[9];
 	unsigned char firstFree;
+  fileExists = 0;
 
    printf("openFile\n");
 	
@@ -419,10 +420,12 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         fprintf(stderr, "failed to update the super block\n");
     }
     fileUsed[FD] = 1;
+    
+    return SUCCESS;
 }
 
 int tfs_deleteFile(fileDescriptor FD) {
-    unsigned char numFiles, position;
+    unsigned char position;
     tfs_block buf, lastFree;
     //ensure that disk is mounted
     if (mountedDisk == NULL)
@@ -570,6 +573,8 @@ int tfs_rename(fileDescriptor FD, char* newName) {
 	strncpy(openFilesTable[FD], newName, 9);
 	//write block back with modifications
 	writeBlock(diskFD, FD, buf.mem);
+
+  return SUCCESS;
 }
 
 void tfs_readdir() {
