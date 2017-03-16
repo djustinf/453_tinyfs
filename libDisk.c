@@ -13,7 +13,7 @@ int openDisk(char *filename, int nBytes) {
 	int i;
 	fileDescriptor fd;
 	if (nBytes == 0) {
-		return open(filename, 0);
+		return open(filename, 0777);
 	}
 	else if (nBytes < BLOCKSIZE) {
 		errno = BLOCKSIZE_FAILURE;
