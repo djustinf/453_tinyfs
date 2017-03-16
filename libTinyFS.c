@@ -377,7 +377,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         inode.mem[2] = super.mem[2];
         strcpy(inode.mem + 5, file_name);
     }
-    offset = 252;
+    offset = 0;
     ret = super.mem[2];
     for (idx = 0; idx < reqBlocks; idx += BLOCKSIZE)
     {

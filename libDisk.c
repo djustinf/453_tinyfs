@@ -13,14 +13,14 @@ int openDisk(char *filename, int nBytes) {
 	int i;
 	fileDescriptor fd;
 	if (nBytes == 0) {
-		return open(filename, 0777);
+		return open(filename, O_RDWR);
 	}
 	else if (nBytes < BLOCKSIZE) {
 		errno = BLOCKSIZE_FAILURE;
 		return -1;
 	}
 	else {
-		if ((fd = open(filename, O_CREAT|O_WRONLY, 0777)) >= 0) {
+		if ((fd = open(filename, O_CREAT|O_RDWR, 0777)) >= 0) {
 			while (nBytes % BLOCKSIZE != 0) {
 				nBytes--;
 			}
