@@ -12,7 +12,7 @@ libTinyFS: libDisk libTinyFS.c libTinyFS.h libTinyFS.o
 	$(CC) $(CFLAGS) -c libTinyFS.c libDisk.c
 
 
-libDisk: libDisk.c libDisk.h libDisk.o TinyFS_errno.h
+libDisk: libDisk.c libDisk.h libDisk.o tinyFS_errno.h
 	$(CC) $(CFLAGS) -c libDisk.c
 
 tfsTest: libTinyFS tfsTest.c 
