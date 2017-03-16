@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <time.h>
 #include "tinyFS_errno.h"
 #include "tinyFS.h"
 #include "libTinyFS.h"
@@ -41,7 +42,7 @@ int tfs_mkfs(char *filename, int nBytes) {
 		        initFreeblock(&buf, traversed);
 		    //if (write(fd, buf.mem, 1) < BLOCKSIZE) {
 			if (writeBlock(fd, traversed, buf.mem) < 0) {
-			
+
 			    return MKFS_FAILURE;
 		    }
         }
@@ -79,13 +80,13 @@ void initSuperblock(tfs_block *buf, unsigned char firstFree, int nBytes) {
 
 void initInodeblock(tfs_block *buf, char* name) {
 	int i;
-	
+
 	// Set block type.
 	buf->mem[0] = 2;
 
 	// Next inode is null since this is the newest inode.
 	buf->mem[3] = '\0';
-	
+
 	// Write the name.
 	for (i = 5; i < 5 + strlen(name); i++) {
 			buf->mem[i] = *name;
@@ -101,24 +102,24 @@ void initInodeblock(tfs_block *buf, char* name) {
 int tfs_mount(char *diskname) {
 	char buf[BLOCKSIZE];
 	int diskNum, i;
-	
+
 	// TFS is already mounted.
 	if (mountedDisk) {
 		perror("mount: TFS already mounted");
 		return ERR_TFS_MOUNT;
 	}
-	
+
 	// Not mounted, so mount it and verify the TFS type.
 	else {
 		// Open the disk.
 		diskNum = openDisk(diskname, 0);
       diskFD = diskNum;
-		
+
 		// Read the superblock.
 		readBlock(diskNum, 0, &buf);
-		
+
 		//printf("\nDEBUG: %c", buf[1]);
-		
+
 		// Check that the block is valid.
 		if (buf[1] != 0x44) {
 			perror("mount: TFS is invalid");
@@ -160,7 +161,7 @@ int tfs_unmount(void) {
 	if (!mountedDisk) {
 		perror("unmount: TFS already unmounted");
 		return ERR_TFS_UNMOUNT;
-		
+
 	}
 	// TFS is mounted, so unmount it.
 	else {
@@ -173,7 +174,7 @@ int tfs_unmount(void) {
 		free(openFilesLocation);
 		numBlocks = -1;
 	}
-	
+
 	return SUCCESS;
 }
 
@@ -186,32 +187,32 @@ fileDescriptor tfs_openFile(char *name) {
 	char tempName[9];
 	unsigned char firstFree;
   fileExists = 0;
-  timt_t curTime;
+  time_t curTime;
 
    printf("openFile\n");
-	
+
 	// Make sure we have a valid name length.
 	if ((strlen(name) > MAX_FILE_NAME_LENGTH) || !strlen(name)) {
 		perror("openFile: Invalid file name length");
 		return ERR_FILE_NAME_LENGTH;
 	}
-	
+
 	// If we have a mounted disk, check if the file is already open.
 	if (mountedDisk) {
 		// Open the disk.
 		diskNum = openDisk(mountedDisk, 0);
-		
-		// Read the superblock from the disk. 
+
+		// Read the superblock from the disk.
 		readBlock(diskNum, 0, &(buf.mem));
-		
+
 		// Get the number of blocks from the superblock.
 		numFiles = numBlocks - 1;
-		
+
 		// Get the address of the first free block.
 		firstFree = buf.mem[2];
-		
+
 		// Use that as the upper bound for the open files table so we can iterate through it.
-		// Iterate through the table, and check if we find an entry that equals our name. 
+		// Iterate through the table, and check if we find an entry that equals our name.
 		for (int i = 0; i < numFiles; i++) {
          //printf("%d\n", i);
 
@@ -224,10 +225,10 @@ fileDescriptor tfs_openFile(char *name) {
 			   if (!strcmp(tempName, name)) {
 				   return i;
 			   }
-         }	
+         }
 		}
 	}
-	
+
 	// Disk is not already mounted, so we can't open the file.
 	else {
 		perror("openFile: TFS not mounted");
@@ -238,10 +239,10 @@ fileDescriptor tfs_openFile(char *name) {
 	for (int i = 1; i <= numFiles && !fileExists; i++) {
 		// Read the block.
 		readBlock(diskNum, i, &(buf.mem));
-		
+
 		// Check if this block is an inode.
 		if (buf.mem[0] == 2) {
-			
+
 			// Now check if the names equal.
 			if(!strcmp(name, buf.mem+4)) {
 				fileExists = 1;
@@ -250,63 +251,63 @@ fileDescriptor tfs_openFile(char *name) {
 			}
 		}
 	}
-	
+
 	// Existing file wasn't found, so we need to create one.
 	if (!fileExists) {
-      
+
       readBlock(diskNum, 0, &(super.mem));
-		
+
 		// Read in the first free block.
 		readBlock(diskNum, firstFree, &(buf.mem));
-		
+
       super.mem[2] = buf.mem[2];
 
       writeBlock(diskNum, 0, &(super.mem));
 
 		// Init the inode block at that free block.
 		initInodeblock(&buf, name);
-		
+
 		// Now write the new inode back.
     fd = firstFree;
-    
+
     // Get the current time.
     time(&curTime);
-    
+
     // Write creation date.
-    memcpy(&buf->mem[18], &time, sizeof(time_t));
-    
+    memcpy(&buf.mem[18], &time, sizeof(time_t));
+
     // Write last modified date.
-    memcpy(&buf->mem[18 + sizeof(time_t)], &time, sizeof(time_t));
-    
+    memcpy(&buf.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
+
     // Write last accessed date.
-    memcpy(&buf->mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
-    
+    memcpy(&buf.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
+
 		writeBlock(diskNum, fd, &(buf.mem));
-    
+
     strcpy(openFilesTable[fd], name);
-		
+
 		// Reset the file descriptor location.
 		openFilesLocation[fd] = 0;
 	}
-	
+
 	// The file exists, we just need to open it.
 	else {
 		strcpy(openFilesTable[fd], name);
-		
+
 		// Reset the file descriptor location.
 		openFilesLocation[fd] = 0;
-		
+
     // Get the current time.
     time(&curTime);
-    
+
     // Write last accessed date.
-    memcpy(&buf->mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
+    memcpy(&buf.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
 	}
 	return fd;
 }
 
 int tfs_closeFile(fileDescriptor FD) {
-	
+
 	// File is open, so close it.
 	if (openFilesTable[FD] != '\0') {
 		openFilesTable[FD] = "\0";
@@ -386,16 +387,16 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         //update the inode block
         strcpy(inode.mem + 5, file_name);
         inode.mem[14] = reqBlocks;
-        
+
         // Get the time. All timestamps will be equal to this intitially.
         time(&curTime);
-        
+
         // Write last modified date.
-        memcpy(inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
-        
+        memcpy(&inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
+
         // Write last accessed date.
-        memcpy(inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
-        
+        memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
+
         writeBlock(diskFD, super.mem[3], &(super.mem));
     }
     else
@@ -405,15 +406,15 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         //assign the the first free block as the current inode
         inode.mem[2] = super.mem[2];
         strcpy(inode.mem + 5, file_name);
-        
+
         // Get the time. All timestamps will be equal to this intitially.
         time(&curTime);
-        
+
         // Write last modified date.
-        memcpy(inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
-        
+        memcpy(&inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
+
         // Write last accessed date.
-        memcpy(inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
+        memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
     }
     offset = 0;
     ret = super.mem[2];
@@ -427,17 +428,17 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         }
 
         //get the first free block
-      
-     
+
+
         fileEx.mem[0] = 3;
         fileEx.mem[1] = MAGIC_NUM;
         fileEx.mem[2] = ret + 1;
         memcpy(fileEx.mem + 4, buffer + offset, 252);
-        
+
         if (writeBlock(diskFD, ret, &(fileEx.mem)) < 0)
         {
             fprintf(stderr, "failed to write to fileEx\n\n");
-        } 
+        }
         ret++;
         offset += 252;
     }
@@ -457,7 +458,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         fprintf(stderr, "failed to update the super block\n");
     }
     fileUsed[FD] = 1;
-    
+
     return SUCCESS;
 }
 
@@ -513,7 +514,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
     time_t curTime;
 
    printf("readByte\n");
-   
+
    //check if file is mounted and that file exists
    if((ret = checkMountAndFile(FD)) < 0)
    {
@@ -536,13 +537,13 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
       fprintf(stderr, "file extent\n");
       return ERR_READ;
    }
- 
+
   // Get the time. All timestamps will be equal to this intitially.
   time(&curTime);
-  
+
   // Write last accessed date.
-  memcpy(inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
-   
+  memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
+
    while ((idx > 252) && (fileEx.mem[2] != '\0'))
    {
       ret = fileEx.mem[2];
@@ -551,13 +552,13 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
       {
          return ERR_READ;
       }
-      
+
       idx -= 252;
    }
    //check if EOF
    if (idx <= 252)
    {
-      return ERR_INVALID_TFS;      
+      return ERR_INVALID_TFS;
    }
 
    //get the reference to the first inode
@@ -565,34 +566,34 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 
    //update inode
    openFilesLocation[FD]++;
-   
+
 	return SUCCESS;
 }
 
 int tfs_seek(fileDescriptor FD, int offset) {
-	// Check if FD is in list of open files. 
+	// Check if FD is in list of open files.
 	if (openFilesTable[FD] == '\0') {
 		perror("seek: FD is not in list of open files");
 		return ERR_SEEK;
 	}
-	
+
 	// TODO: Check if offset puts you past last file extent.
-	
+
 	// Make sure the disk is mounted.
 	if (!mountedDisk) {
 		perror("seek: disk is not mounted");
 		return ERR_SEEK;
 	}
-	
+
 	// Check that we have a valid offset.
 	if (offset < 0) {
 		perror("seek: offset is invalid");
 		return ERR_SEEK;
 	}
-	
+
 	// If neither of these fails, set the FD to the offset.
 	openFilesLocation[FD] = offset;
-	
+
 	return SUCCESS;
 }
 
@@ -635,9 +636,20 @@ void tfs_readdir() {
 }
 
 time_t tfs_readFileInfo(fileDescriptor FD) {
-  time_t curTime;
-  
-  time(&curTime);
-  
-  return curTime;
+  time_t creationTime;
+	tfs_block buf;
+
+	//check if file is open
+	if (openFilesTable[FD] == '\0') {
+		perror("readFileInfo: file closed");
+		return ERR_FILE_CLOSED;
+	}
+
+	//read in inode of file to access time.
+	readBlock(diskFD, FD, &(buf.mem));
+
+	// Grab the creation time.
+	memcpy(&creationTime, &buf.mem[18], sizeof(time_t));
+
+	return creationTime;
 }
