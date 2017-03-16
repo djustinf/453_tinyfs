@@ -663,3 +663,116 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
 
 	return creationTime;
 }
+
+//read only 0
+//read-write 1
+
+void tfs_makeRO(char *name)
+{
+    int idx = -1, extentIdx = -1;
+    tfs_block inode;
+
+    for(idx = 0; idx < numBlocks; idx += BLOCKSIZE)
+    {
+        //read the first inode
+        if(readBlock(diskFD, idx, &(inode.mem)) < 0)
+        {
+            fprintf(stderr, "tfs_makeRO: failed to read first inode block\n");
+            return;
+        }
+        //check to see if the file is in the disk
+        if (!strcmp(inode.mem + 5, name))
+        {
+            extentIdx = inode.mem[2];
+            inode.mem[3] = 1;
+
+            if(writeBlock(diskFD, idx, inode.mem))
+            {
+                fprintf(stderr, "tfs_makeRO: could not access inode, could not update file permssion.\n");
+            }
+            break;
+        }
+    }
+    if (extentIdx < 0)
+    {
+        fprintf(stderr, "tfs_makeRO: file %s not found\n", name);
+    }
+}
+
+void tfs_makeRW(char *name)
+{
+    int idx = -1, extentIdx = -1;
+    tfs_block inode;
+
+    for(idx =0; idx < numBlocks; idx += BLOCKSIZE)
+    {
+        //read the first inode
+        if(readBlock(diskFD, idx, &(inode.mem)) < 0)
+        {
+            fprintf(stderr, "tfs_makeRW: failed to read first inode block\n");
+            return;
+        }
+        //check to see if the file is in the disk
+        if (!strcmp(inode.mem + 5, name))
+        {
+            extentIdx = inode.mem[2];
+            inode.mem[3] = 0;
+
+            if(writeBlock(diskFD, idx, inode.mem))
+            {
+                fprintf(stderr, "tfs_makeRW: could not access inode, could not update file permssion.\n");
+            }
+            break;
+        }
+    }
+    if (extentIdx < 0)
+    {
+        fprintf(stderr, "tfs_makeRW: file %s not found\n", name);
+    }
+}
+
+int writeByte(fileDescriptor FD, int offset, unsigned int data)
+{
+    int curr = 0, ret = 0, blockOffset = getNumBlocks(offset);
+    tfs_block inode, fileEx;
+
+     //check if file is mounted and that the file exists
+    if((ret = checkMountAndFile(FD)) < 0)
+       return ret;
+
+    //read from inode to get the first ref to file extent
+    if (readBlock(diskFD, FD, &(inode.mem)) < 0)
+    {
+        fprintf(stderr, "inode\n");
+        return ERR_READ;
+    }
+    //get the location of the file extent
+    if (readBlock(diskFD, inode.mem[2] + blockOffset, &(fileEx.mem)) < 0)
+    {
+        fprintf(stderr, "writeByte: failed to read file extent\n");
+        return ERR_READ;
+    }
+
+    //store the location of the next file extent
+    curr = fileEx.mem[2];
+
+    //erase everthing in the data bytes
+    memset(fileEx.mem + 4, '\0', 252);
+    memcpy(fileEx.mem + 4, (&data), 252);
+    if (writeBlock(diskFD, offset, fileEx.mem) < 0)
+    {
+        fprintf(stderr, "writeByte: failed to write to file extent\n");
+        return ERR_WRITE;
+    }
+
+
+    memset(fileEx.mem + 4, '\0', 252);
+    memcpy(fileEx.mem + 4, (&data) + 252, 8);
+    if (writeBlock(diskFD, curr, fileEx.mem) < 0)
+    {
+        fprintf(stderr, "writeByte: failed to write to file extent\n");
+        return ERR_WRITE;
+    }
+    
+   return SUCCESS;
+}
