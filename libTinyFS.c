@@ -15,12 +15,7 @@ int diskFD;
 int freeBlocks;
 int numBlocks;
 int *openFilesLocation;
-<<<<<<< HEAD
-int numBlocks;
-=======
-int *fileUsed;
 char **openFilesTable;
->>>>>>> 04df1e10c034435baa2536a20e3e516113ccca0e
 char *mountedDisk = NULL;
 
 int tfs_mkfs(char *filename, int nBytes) {
