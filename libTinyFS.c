@@ -138,13 +138,8 @@ int tfs_mount(char *diskname) {
 	mountedDisk = diskname;
 	openFilesTable = (char**) malloc(sizeof(char*) * numBlocks);
 	openFilesLocation = (int*) malloc(sizeof(int) * numBlocks);
-<<<<<<< HEAD
+
 	for (i = 0; i < numBlocks; i++) {
-=======
-    fileUsed = (int*) calloc(numBlocks, sizeof(int));
-	
-    for (i = 0; i < numBlocks; i++) {
->>>>>>> 04df1e10c034435baa2536a20e3e516113ccca0e
 	    openFilesTable[i] = (char*) malloc(sizeof(char) * 9);
 	    openFilesTable[i][0] = '\0';
 	    openFilesLocation[i] = 0;
@@ -450,11 +445,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     if (writeBlock(diskFD, 0, &(super.mem)) < 0) {
         fprintf(stderr, "failed to update the super block\n");
     }
-<<<<<<< HEAD
-=======
-
-    fileUsed[FD] = 1;
->>>>>>> 04df1e10c034435baa2536a20e3e516113ccca0e
 
     return SUCCESS;
 }
@@ -743,7 +733,6 @@ int writeByte(fileDescriptor FD, int offset, unsigned int data) {
     }
     
    return SUCCESS;
-<<<<<<< HEAD
 }
 
 int resetFile(fileDescriptor FD) {
@@ -791,6 +780,4 @@ int resetFile(fileDescriptor FD) {
     openFilesTable[FD] = "\0";
 
 	return SUCCESS;
-=======
->>>>>>> 04df1e10c034435baa2536a20e3e516113ccca0e
 }
