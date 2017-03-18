@@ -41,7 +41,7 @@ int tfs_mkfs(char *filename, int nBytes) {
 		        initFreeblock(&buf, '\0');
             }
 		    else {
-		        initFreeblock(&buf, traversed);
+		        initFreeblock(&buf, traversed+1);
             }
 			if (writeBlock(fd, traversed, buf.mem) < 0) {
 			    return MKFS_FAILURE;
@@ -214,6 +214,8 @@ fileDescriptor tfs_openFile(char *name) {
 
 		// Get the address of the first free block.
 		firstFree = buf.mem[2];
+
+        printf("firstFree: %d\n", firstFree);
 
 		// Use that as the upper bound for the open files table so we can iterate through it.
 		// Iterate through the table, and check if we find an entry that equals our name.
