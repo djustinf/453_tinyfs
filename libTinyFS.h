@@ -7,6 +7,7 @@ typedef struct {
 } tfs_block;
 
 
+int resetFile(fileDescriptor FD);
 time_t tfs_readFileInfo(fileDescriptor FD);
 int tfs_rename(fileDescriptor FD, char* newName);
 void tfs_readdir();

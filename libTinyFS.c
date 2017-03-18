@@ -15,7 +15,6 @@ int diskFD;
 int freeBlocks;
 char **openFilesTable;
 int *openFilesLocation;
-int *fileUsed;
 int numBlocks;
 char *mountedDisk = NULL;
 
@@ -133,7 +132,6 @@ int tfs_mount(char *diskname) {
 	mountedDisk = diskname;
 	openFilesTable = (char**) malloc(sizeof(char*) * numBlocks);
 	openFilesLocation = (int*) malloc(sizeof(int) * numBlocks);
-    fileUsed = (int*) calloc(numBlocks, sizeof(int));
 	for (i = 0; i < numBlocks; i++) {
 	    openFilesTable[i] = (char*) malloc(sizeof(char) * 9);
 	    openFilesTable[i][0] = '\0';
@@ -372,13 +370,10 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     //read from inode to get the first ref to file extent
     strcpy(file_name, openFilesTable[FD]);
     printf("file is %s, length %d\n\n", file_name, (int)strlen(file_name));
-
-     if (fileUsed[FD])
-     {
         //TODO: save creation time
         //deallocate data blocks
-        if (tfs_deleteFile(FD) < 0)
-           fprintf(stderr, "could not delete file, FD is %d\n\n", FD);
+        if (resetFile(FD) < 0)
+           fprintf(stderr, "could not reset file, FD is %d\n\n", FD);
 
         if(readBlock(diskFD, FD, &(inode.mem)) < 0)
         {
@@ -408,24 +403,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
 
         writeBlock(diskFD, super.mem[3], &(super.mem));
-    }
-    else
-    {
-        //create an inode block
-        initInodeblock(&inode, file_name);
-        //assign the the first free block as the current inode
-        inode.mem[2] = super.mem[2];
-        strcpy(inode.mem + 5, file_name);
-
-        // Get the time. All timestamps will be equal to this intitially.
-        time(&curTime);
-
-        // Write last modified date.
-        memcpy(&inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
-
-        // Write last accessed date.
-        memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
-    }
     offset = 0;
     ret = super.mem[2];
     for (idx = 0; idx < reqBlocks; idx += BLOCKSIZE)
@@ -467,7 +444,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     {
         fprintf(stderr, "failed to update the super block\n");
     }
-    fileUsed[FD] = 1;
 
     return SUCCESS;
 }
@@ -513,7 +489,6 @@ int tfs_deleteFile(fileDescriptor FD) {
 
     openFilesLocation[FD] = 0;
     openFilesTable[FD] = "\0";
-    fileUsed[FD] = 0;
 
 	return SUCCESS;
 }
@@ -775,4 +750,51 @@ int writeByte(fileDescriptor FD, int offset, unsigned int data)
     }
     
    return SUCCESS;
+}
+
+int resetFile(fileDescriptor FD) {
+    unsigned char position;
+    tfs_block buf, lastFree;
+
+    //read in inode
+    readBlock(diskFD, FD, &(buf.mem));
+    if (buf.mem[0] != 2)
+    {
+        fprintf(stderr, "block is not inode, type: %d, FD %d\n\n", buf.mem[0], FD);
+        return ERR_INVALID_INODE;
+    }
+    //get last free block
+    readBlock(diskFD, 0, &(lastFree.mem));
+    while (lastFree.mem[2] != '\0') {
+		position = lastFree.mem[2];
+        readBlock(diskFD, lastFree.mem[2], &(lastFree.mem));
+    }
+
+    //don't do anything if there are no file extents
+    if (buf.mem[2] == '\0')
+        return SUCCESS;
+
+    //add inode to free chain of blocks
+    lastFree.mem[2] = (unsigned char) buf.mem[2];
+	writeBlock(diskFD, position, lastFree.mem);
+
+    //add all blocks to free chain except for last one
+    readBlock(diskFD, buf.mem[2], &(buf.mem));
+    while (buf.mem[2] != '\0') {
+		freeBlocks++;
+        initFreeblock(&buf, buf.mem[2]);
+        writeBlock(diskFD, lastFree.mem[2], buf.mem);
+        lastFree = buf;
+        readBlock(diskFD, buf.mem[2], &(buf.mem));
+    }
+
+    //add last one to chain
+	freeBlocks++;
+    initFreeblock(&buf, '\0');
+    writeBlock(diskFD, lastFree.mem[2], buf.mem);
+
+    openFilesLocation[FD] = 0;
+    openFilesTable[FD] = "\0";
+
+	return SUCCESS;
 }
