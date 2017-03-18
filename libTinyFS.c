@@ -340,7 +340,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
 
     int ret, idx, reqBlocks = getNumBlocks(size), offset = 0;
     tfs_block super, inode, fileEx, fBlock;
-    char file_name[9];
     time_t curTime;
 
     printf("tfs_writeFile, diskFD is %d, FD: %d\n", diskFD, FD);
@@ -351,11 +350,12 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     }
 
     //get the super block to get the current number of free blocks
+    /*
     if(readBlock(diskFD, 0, &(super.mem)) < 0) {
         perror("Error: reading super block failed\n");
         return ERR_READ;
     }
-
+    */
     fprintf(stdout, "read superBlock, type is %d\n", super.mem[0]);
     
     //check to see if we have enough space to write the data
@@ -369,41 +369,38 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     idx = openFilesLocation[FD];
     fprintf(stdout, "idx: %d, super.mem[3]: %d\n", idx, super.mem[3]);
     //read from inode to get the first ref to file extent
-    strcpy(file_name, openFilesTable[FD]);
-    printf("file is %s, length %d\n\n", file_name, (int)strlen(file_name));
-        //TODO: save creation time
-        //deallocate data blocks
-        if (resetFile(FD) < 0)
-           fprintf(stderr, "could not reset file, FD is %d\n\n", FD);
+    //strcpy(file_name, openFilesTable[FD]);
+    //printf("file is %s, length %d\n\n", file_name, (int)strlen(file_name));
+    //deallocate data blocks
+    if (resetFile(FD) < 0) {
+        fprintf(stderr, "could not reset file, FD is %d\n\n", FD);
+    }
+    if(readBlock(diskFD, FD, &(inode.mem)) < 0) {
+        fprintf(stderr, "writeFile inode\n");
+        return ERR_READ;
+    }
+    fprintf(stdout, "read inodeBlock, type is %d\n", inode.mem[0]);
 
-        if(readBlock(diskFD, FD, &(inode.mem)) < 0)
-        {
-            fprintf(stderr, "writeFile inode\n");
-            return ERR_READ;
-        }
-        fprintf(stdout, "read inodeBlock, type is %d\n", inode.mem[0]);
+    //get the super block to get the current number of free blocks
+    if(readBlock(diskFD, 0, &(super.mem)) < 0) {
+        perror("Error: reading super block failed\n");
+        return ERR_READ;
+    }
 
-        //get the super block to get the current number of free blocks
-        if(readBlock(diskFD, 0, &(super.mem)) < 0)
-        {
-            perror("Error: reading super block failed\n");
-            return ERR_READ;
-        }
+    //update the inode block
+    //strcpy(inode.mem + 5, file_name);
+    inode.mem[14] = reqBlocks;
 
-        //update the inode block
-        strcpy(inode.mem + 5, file_name);
-        inode.mem[14] = reqBlocks;
+    // Get the time.
+    time(&curTime);
 
-        // Get the time. All timestamps will be equal to this intitially.
-        time(&curTime);
+    // Write last modified date.
+    memcpy(&inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
 
-        // Write last modified date.
-        memcpy(&inode.mem[18 + sizeof(time_t)], &time, sizeof(time_t));
+    // Write last accessed date.
+    memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
 
-        // Write last accessed date.
-        memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
-
-        writeBlock(diskFD, super.mem[3], &(super.mem));
+    writeBlock(diskFD, super.mem[3], &(super.mem));
     offset = 0;
     ret = super.mem[2];
     for (idx = 0; idx < reqBlocks; idx += BLOCKSIZE) {
@@ -414,8 +411,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         }
 
         //get the first free block
-
-
         fileEx.mem[0] = 3;
         fileEx.mem[1] = MAGIC_NUM;
         fileEx.mem[2] = ret + 1;
