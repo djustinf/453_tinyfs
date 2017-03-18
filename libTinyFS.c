@@ -357,7 +357,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
 
         return ERR_INVALID_SPACE;
     }
-    fprintf(stdout, "idx: %d, super.mem[3]: %d\n", idx, super.mem[3]);
 
     //deallocate data blocks
     if (resetFile(FD) < 0) {
@@ -376,7 +375,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         perror("Error: reading super block failed\n");
         return ERR_READ;
     }
-
+    fprintf(stdout, "idx: %d, super.mem[3]: %d\n", index, super.mem[3]);
     //update the inode block
     //strcpy(inode.mem + 5, file_name);
     inode.mem[14] = reqBlocks;
@@ -395,7 +394,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     writeBlock(diskFD, FD, inode.mem);
 
     readBlock(diskFD, super.mem[2], &(temp.mem));
-    initExtent(temp, temp.mem[2]);
+    initExtent(&temp, temp.mem[2]);
     offset = (size - index >= 252) ? (252) : (size - index);
     memcpy(temp.mem + 4, buffer + index, offset);
     index += offset;
@@ -403,7 +402,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     for (i = 1; i < reqBlocks; i++) {
         position = temp.mem[2];
         readBlock(diskFD, temp.mem[2], &(temp.mem));
-        initExtent(temp, temp.mem[2]);
+        initExtent(&temp, temp.mem[2]);
         offset = (size - index >= 252) ? (252) : (size - index);
         memcpy(temp.mem + 4, buffer + index, offset);
         index += offset;
@@ -413,13 +412,13 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     temp.mem[2] = '\0';
     //update super
     writeBlock(diskFD, 0, super.mem);
-    writeBlock(diskFD, potition, temp.mem);
+    writeBlock(diskFD, position, temp.mem);
     openFilesLocation[FD] = 0;
 
     return SUCCESS;
 }
 
-int initExtent(tfs_block *block, unsigned char next) {
+void initExtent(tfs_block *block, unsigned char next) {
     block->mem[0] = 3;
     block->mem[1] = MAGIC_NUM;
     block->mem[2] = next;
@@ -758,4 +757,72 @@ int resetFile(fileDescriptor FD) {
     openFilesLocation[FD] = 0;
 
 	return SUCCESS;
+}
+
+int tfs_displayFragments() {
+    int i;
+    tfs_block buf;
+
+    // TFS is already unmounted, so throw error.
+	if (!mountedDisk) {
+		perror("displayFragments: TFS already unmounted");
+		return ERR_TFS_UNMOUNT;
+	}
+
+    // Loop through all of our memory and print out visual representation of each block.
+    for (i = 0; i < (numBlocks + 1); i++) {
+        // Read the current block into the buffer.
+        if (readBlock(diskFD, i, &(buf.mem)) < 0) {
+            perror("displayFragments: read error");
+            return ERR_READ;
+        }
+
+        // Block is superblock.
+        if (buf.mem[0] == 1) {
+            printf("[SUPER]");
+        }
+        // Block is inode.
+        else if (buf.mem[0] == 2) {
+            printf("[INODE]");
+        }
+        // Block is file extent.
+        else if (buf.mem[0] == 3) {
+            printf("[FILE_EXTENT]");
+        }
+        // Block is free.
+        else if (buf.mem[0] == 4) {
+            printf("[FREE]");
+        }
+    }
+
+    printf("\n");
+
+    return SUCCESS;
+}
+
+int tfs_defrag() {
+    int i;
+   //unsigned char firstFree;
+    tfs_block buf;
+
+    // TFS is already unmounted, so throw error.
+	if (!mountedDisk) {
+		perror("displayFragments: TFS already unmounted");
+		return ERR_TFS_UNMOUNT;
+	}
+
+    // Loop through all of our memory.
+    for (i = 1; i < numBlocks; i++) {
+        // Read the current block into the buffer.
+        if (readBlock(diskFD, i, &(buf.mem)) < 0) {
+            perror("defrag: read error");
+            return ERR_READ;
+        }
+        // Keep looping until we find our first free block.
+        if (buf.mem[0] != 4) {
+            continue;
+        }
+    }
+
+    return SUCCESS;
 }

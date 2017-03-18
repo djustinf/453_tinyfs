@@ -7,11 +7,14 @@ typedef struct {
 } tfs_block;
 
 
+int tfs_defrag();
+int tfs_displayFragments();
 int resetFile(fileDescriptor FD);
 time_t tfs_readFileInfo(fileDescriptor FD);
 int tfs_rename(fileDescriptor FD, char* newName);
 void tfs_readdir();
 void initFreeblock(tfs_block *block, unsigned char nextFree);
+void initExtent(tfs_block *block, unsigned char next);
 void initSuperblock(tfs_block *block, unsigned char firstFree, int nBytes);
 void initInodeblock(tfs_block *buf, char* name);
 
