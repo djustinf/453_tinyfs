@@ -288,7 +288,6 @@ fileDescriptor tfs_openFile(char *name) {
 
 	// The file exists, we just need to open it.
 	else {
-        printf("DEBUG: %s, name: %s\n", openFilesTable[fd], name);
         openFilesTable[fd] = calloc(strlen(name), sizeof(char));
 		strcpy(openFilesTable[fd], name);
 
@@ -658,6 +657,7 @@ void tfs_makeRO(char *name) {
 
         if (inode.mem[0] == 2)
         {
+            printf("tfs_makeRO %s\n", inode.mem + 5);
             //check to see if the file is in the disk
             if (!strcmp(inode.mem + 5, name)) {
                 extentIdx = inode.mem[2];
@@ -703,6 +703,8 @@ int writeByte(fileDescriptor FD, int offset, unsigned int data) {
     int ret = 0;/*, blockOffset = getNumBlocks(offset);*/
     tfs_block inode, fileEx;
 
+    //get the current location of the file pouinter
+
     //check if file is mounted and that the file exists
     if((ret = checkMountAndFile(FD)) < 0) {
        return ret;
@@ -718,7 +720,7 @@ int writeByte(fileDescriptor FD, int offset, unsigned int data) {
         fprintf(stderr, "writeByte: File is read-only\n");
         return ERR_READ_ONLY;
     }
-
+    
     //get the location of the file extent
     if (readBlock(diskFD, inode.mem[2] , &(fileEx.mem)) < 0) {
         fprintf(stderr, "writeByte: failed to read file extent\n");
@@ -726,24 +728,35 @@ int writeByte(fileDescriptor FD, int offset, unsigned int data) {
     }
 
     ret = inode.mem[2];
-    int idx = 0;
-    while (offset--) {
-        readBlock(diskFD, ret, &(fileEx.mem));
 
-        if(fileEx.mem[2] == '\0') {
+    //check if the offset is greater than 252
+    //if it is, then move the appropriate amount of blocks
+    //as each one can only hold 252 bytes of data
+    if (offset > 252) {
+        int idx = 0, temp;
+
+        temp = offset / 252;
+        if (temp % 252)
+            temp++;
+        offset -= 252;
+
+        while (temp--) {
+            readBlock(diskFD, ret, &(fileEx.mem));
+
+            if(fileEx.mem[2] == '\0') {
             
-            initExtent(&fileEx, idx + 1);
+                initExtent(&fileEx, idx + 1);
 
-            writeBlock(diskFD, idx + 1, fileEx.mem);
+                writeBlock(diskFD, idx + 1, fileEx.mem);
+            }
+            ret = fileEx.mem[2];
+            idx++;
         }
-        ret = fileEx.mem[2];
-        idx++;
     }
+    
 
-    //erase 1 byte of data
-    memset(fileEx.mem + 4, '\0', sizeof(char));
     //copy exactly one byte
-    memcpy(fileEx.mem + 4, (&data), sizeof(char));
+    memcpy(fileEx.mem + 4 + offset, (&data), sizeof(char));
     //write the data
     if (writeBlock(diskFD, ret, fileEx.mem) < 0) {
         fprintf(stderr, "writeByte: failed to write to file extent\n");
