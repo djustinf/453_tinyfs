@@ -71,10 +71,19 @@ int main(int argc, char *argv[]) {
         printf("%c", readBuffer);
     printf("\n");
     
+    waitForEnter();
     // Try to read from file 1. Won't print anything.
-    // Print seek to begin of file1 
-    // seek
-    //read again, should get data
+    printf("Attempting to read from File 1 again. No data should be printed:\n");
+    while (tfs_readByte(FD1, &readBuffer) >= 0)
+        printf("%c", readBuffer);
+    printf("\n");
+    waitForEnter();
+    printf("Now seeking to start of File 1\n");
+    tfs_seek(FD1, 0);
+    printf("Now trying to read from File 1 again. Data should be printed:\n");
+    while (tfs_readByte(FD1, &readBuffer) >= 0)
+        printf("%c", readBuffer);
+    printf("\n");
 
     waitForEnter();
     printf("Files present:\n");
@@ -97,15 +106,14 @@ int main(int argc, char *argv[]) {
     tfs_readdir();
 
     waitForEnter();
+    printf("Displaying file system (all free blocks should be contiguous):\n");
     tfs_displayFragments("File1");
 
     /*
         other tests here
-        tfs_seek
 
-        // Test timestamps        
+        Test timestamps        
 
-        tfs_displayFragments
         make_RO
         make_RW
         writeByte
