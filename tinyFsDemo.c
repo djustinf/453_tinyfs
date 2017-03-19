@@ -71,6 +71,11 @@ int main(int argc, char *argv[]) {
         printf("%c", readBuffer);
     printf("\n");
     
+    // Try to read from file 1. Won't print anything.
+    // Print seek to begin of file1 
+    // seek
+    //read again, should get data
+
     waitForEnter();
     printf("Files present:\n");
     tfs_readdir();
@@ -91,8 +96,22 @@ int main(int argc, char *argv[]) {
     printf("Files present:\n");
     tfs_readdir();
 
+    waitForEnter();
+    tfs_displayFragments();
     /*
         other tests here
+        tfs_seek
+
+        // Test timestamps        
+
+        tfs_displayFragments
+        make_RO
+        make_RW
+        writeByte
+
+        writeFile with larger files
+
+        defrag (if time permits. function is not done yet)
     */
 
     waitForEnter();

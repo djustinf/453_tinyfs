@@ -504,6 +504,9 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
     // Write last accessed date.
     memcpy(&(inode.mem[18 + (2 * sizeof(time_t))]), &curTime, sizeof(time_t));
 
+    // Write the date back to the inode.
+    writeBlock(diskFD, FD, inode.mem);
+
     while ((idx > 252) && (fileEx.mem[2] != '\0')) {
         ret = fileEx.mem[2];
 
@@ -559,6 +562,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
 
 int tfs_rename(fileDescriptor FD, char* newName) {
 	tfs_block buf;
+    time_t curTime;
 	
     //check for file name length
 	if (strlen(newName) > 8 || strlen(newName) == 0) {
@@ -576,6 +580,16 @@ int tfs_rename(fileDescriptor FD, char* newName) {
 	readBlock(diskFD, FD, &(buf.mem));
 	//copy in new name
 	strncpy(&(buf.mem[5]), newName, 9);
+
+    // Get the current time.
+    time(&curTime);
+
+    // Write last modified date.
+    memcpy(&(buf.mem[18 + sizeof(time_t)]), &curTime, sizeof(time_t));
+
+    // Write last accessed date.
+    memcpy(&(buf.mem[18 + (2 * sizeof(time_t))]), &curTime, sizeof(time_t));
+
 	strncpy(openFilesTable[FD], newName, 9);
 	//write block back with modifications
 	writeBlock(diskFD, FD, buf.mem);
@@ -763,6 +777,7 @@ int resetFile(fileDescriptor FD) {
 
 int tfs_displayFragments() {
     int i;
+    int count = 0;
     tfs_block buf;
 
     // TFS is already unmounted, so throw error.
@@ -772,7 +787,7 @@ int tfs_displayFragments() {
 	}
 
     // Loop through all of our memory and print out visual representation of each block.
-    for (i = 0; i < (numBlocks + 1); i++) {
+    for (i = 0; i < numBlocks; i++) {
         // Read the current block into the buffer.
         if (readBlock(diskFD, i, &(buf.mem)) < 0) {
             perror("displayFragments: read error");
@@ -781,19 +796,23 @@ int tfs_displayFragments() {
 
         // Block is superblock.
         if (buf.mem[0] == 1) {
-            printf("[SUPER]");
+            printf("[S]");
         }
         // Block is inode.
         else if (buf.mem[0] == 2) {
-            printf("[INODE]");
+            printf("[I]");
         }
         // Block is file extent.
         else if (buf.mem[0] == 3) {
-            printf("[FILE_EXTENT]");
+            printf("[E]");
         }
         // Block is free.
         else if (buf.mem[0] == 4) {
-            printf("[FREE]");
+            printf("[F]");
+        }
+        count++;
+        if (count % 10 == 0) {
+            printf("\n");
         }
     }
 
