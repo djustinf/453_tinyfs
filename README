@@ -9,10 +9,16 @@ Additional functionality:
     
     3. Timestamps: Bytes 18-42 are used to store three time_t values representing
     the creation time, last modified time, and last accessed time. tfs_readFileInfo
-    will return the creation time of a given file.
+    will return the creation time of a given file. We tested this functionality in
+    the demo file by grabbing the time right before a file is created, then created
+    the file, and then called tfs_readFileInfo on that file to retrieve the creation
+    time. Our demo shows that both times match, as expected.
 
-    4. Fragmentation info and defragmentation: tfsDisplayFragments was implemented
+    4. Fragmentation info and defragmentation: tfs_displayFragments was implemented
     to display a visual representation of the file system. It simply loops through
-    all of the memory all prints out a visual representation for every block.
+    all of the memory all prints out a visual representation for every block. To
+    test this, we call displayFragments after we've opened three files, and it
+    correctly prints out the superblock, three inodes, and three file extents, 
+    with the rest of the blocks being free. 
 
 Limitations/Bugs:
