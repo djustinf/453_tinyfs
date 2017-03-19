@@ -97,7 +97,8 @@ int main(int argc, char *argv[]) {
     tfs_readdir();
 
     waitForEnter();
-    tfs_displayFragments();
+    tfs_displayFragments("File1");
+
     /*
         other tests here
         tfs_seek
@@ -113,6 +114,30 @@ int main(int argc, char *argv[]) {
 
         defrag (if time permits. function is not done yet)
     */
+
+    waitForEnter();
+    printf("Changing permission to read-only\n");
+    tfs_makeRO("File1");
+    
+    waitForEnter();
+    printf("Writing to file1\n");
+    if (tfs_writeFile(FD1, content1, 20) < 0)
+        fprintf(stderr, "tfs_writeFile: File is read-only\n");
+    else
+        printf("Wrote to File1\n");
+
+
+    waitForEnter();
+    printf("Deleting File1\n");
+    tfs_deleteFile(FD1);
+
+    waitForEnter();
+    printf("Changing to permission to read-write\n");
+    tfs_makeRW("File1");
+
+    waitForEnter();
+    printf("Deleting File1\n");
+    tfs_deleteFile(FD1);
 
     waitForEnter();
     printf("Deleting Blah2\n");

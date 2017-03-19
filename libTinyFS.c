@@ -347,9 +347,9 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     }
 
     //check the file permission
+    fprintf(stdout, "permission %d\n", (int)inode.mem[3]);
     if(inode.mem[3] == 0)
     {
-        fprintf(stderr, "tfs_writeFile: File is read-only\n");
         return ERR_READ_ONLY;
     }
     
@@ -447,10 +447,10 @@ int tfs_deleteFile(fileDescriptor FD) {
     }
 
     //check file permission
-    if(buf.mem[0] == 0)
+    if(buf.mem[3] == 0)
     {
-        fprintf(stderr, "tfs_writeFile: File is read-only\n");
-         return ERR_READ_ONLY;
+        fprintf(stdout, "tfs_deleteFile: File is read-only\n");
+        return ERR_READ_ONLY;
     }
 
     //get last free block
@@ -658,11 +658,12 @@ void tfs_makeRO(char *name) {
         if (inode.mem[0] == 2)
         {
             //check to see if the file is in the disk
-            if (!strcmp(inode.mem + 4, name)) {
+            if (!strcmp(inode.mem + 5, name)) {
                 extentIdx = inode.mem[2];
                 inode.mem[3] = 0;
 
                 writeBlock(diskFD, idx, inode.mem);
+                fprintf(stdout, "file %s is now read-only\n", name);
                 break;
             }
         }
@@ -683,7 +684,7 @@ void tfs_makeRW(char *name) {
         //check to see if the file is in the disk
         if (inode.mem[0] == 2)
         {
-            if (!strcmp(inode.mem + 4, name)) {
+            if (!strcmp(inode.mem + 5, name)) {
                 extentIdx = inode.mem[2];
                 inode.mem[3] = 1;
 
