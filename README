@@ -1,13 +1,44 @@
 Team members: Adair Camacho (acamac03@calpoly.edu), Justin Foxhoven (dfoxhove@calpoly.edu), Geoff Wacker (gwacker@calpoly.edu)
 
 Our implementation:
+    Superblock (has to be at block 0):
+        Byte 0: block type = 1
+        Byte 1: "magic number" = 0x44
+        Byte 2: first free block address or null if none
+        Byte 3: first inode address or null if none
+        Byte 4: number of available blocks
+
+    Inode (Beginning of a file):
+        Byte 0: block type = 2
+        Byte 1: "magic number" = 0x44
+        Byte 2: points to first file extent
+        Byte 3: R/W
+        Byte 4: EMPTY
+        Byte 5-12: file name
+        Byte 13: null term
+        Byte 14: file size (in blocks)
+        Byte 18-26: Creation timestamp
+        Byte 26-34: Last modified timestamp
+        Byte 34-42: Last accessed timestamp
+        
+    File Extent (Contains file data):
+        Byte 0: block type = 3
+        Byte 1: "magic number" = 0x44
+        Byte 2: points to next file extent or NULL if last one
+        Byte 3: EMPTY
+        Byte 4-255: Content
+
+    Free (Free block):
+        Byte 0: block type = 4
+        Byte 1: "magic number" = 0x44
+        Byte 2: points to next free block or NULL if last one
 
 Additional functionality:
     1. Directory listing and renaming: 
     
     2. Read-only and writeByte support:
     
-    3. Timestamps: Bytes 18-42 are used to store three time_t values representing
+    3. Timestamps: Bytes 18-42 of the inode are used to store three time_t values representing
     the creation time, last modified time, and last accessed time. tfs_readFileInfo
     will return the creation time of a given file. We tested this functionality in
     the demo file by grabbing the time right before a file is created, then created
