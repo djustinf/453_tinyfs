@@ -13,14 +13,21 @@ void waitForEnter() {
 }
 
 int main(int argc, char *argv[]) {
+    int i;
     char readBuffer;
     char content1[] = "content 1";
     char content2[] = "content 2";
     char content3[] = "content 3";
+    char content4[1000];
     time_t curTime;
     time_t tempTime;
 
     fileDescriptor FD1, FD2, FD3;
+
+    for (i = 0; i < 1000; i++) {
+        content4[i] = 'a';
+    }
+
     waitForEnter();
     printf("Attempting to mount disk\n");
     if (tfs_mount(DEFAULT_DISK_NAME) < 0) {
@@ -113,7 +120,7 @@ int main(int argc, char *argv[]) {
 
     waitForEnter();
     printf("Displaying file system (all free blocks should be contiguous):\n");
-    tfs_displayFragments("File1");
+    tfs_displayFragments();
 
     /*
         other tests here
@@ -152,10 +159,34 @@ int main(int argc, char *argv[]) {
     waitForEnter();
     printf("Deleting File1\n");
     tfs_deleteFile(FD1);
+    printf("Files present:\n");
+    tfs_readdir();
 
     waitForEnter();
     printf("Deleting Blah2\n");
     tfs_deleteFile(FD2);
+    printf("Files present:\n");
+    tfs_readdir();
+
+    waitForEnter();
+    FD3 = tfs_openFile("File3");
+    printf("Writing 1000 bytes to File3\n");
+    if (tfs_writeFile(FD3, content4, 1000) < 0)
+        perror("write to File3 failed");
+    else
+        printf("Wrote to File3\n");
+
+    waitForEnter();
+    printf("Attempting to read from File 3...\n");
+    while (tfs_readByte(FD3, &readBuffer) >= 0)
+        printf("%c", readBuffer);
+    printf("\n");
+
+    waitForEnter();
+    printf("Displaying file system (free blocks should be fragmented):\n");
+    tfs_displayFragments();
+
+    waitForEnter();
     printf("Files present:\n");
     tfs_readdir();
 

@@ -145,7 +145,7 @@ int checkMountAndFile(fileDescriptor FD)
       return ERR_TFS_NOT_MOUNTED;
    }
    if(openFilesTable[FD] == '\0') {
-      perror("Error: no file found for file descriptor");
+      perror("Error: file closed or does not exist");
       return ERR_INVALID_TFS;
    }
 
@@ -182,7 +182,6 @@ fileDescriptor tfs_openFile(char *name) {
 	int fileExists;
 	tfs_block buf, super;
 	int diskNum;
-	unsigned char numFiles;
 	char tempName[9];
 	unsigned char firstFree;
     fileExists = 0;
@@ -202,9 +201,6 @@ fileDescriptor tfs_openFile(char *name) {
 		// Read the superblock from the disk.
 		readBlock(diskNum, 0, &(buf.mem));
 
-		// Get the number of blocks from the superblock.
-		numFiles = numBlocks - 1;
-
 		// Get the address of the first free block.
 		firstFree = buf.mem[2];
 
@@ -212,7 +208,7 @@ fileDescriptor tfs_openFile(char *name) {
 
 		// Use that as the upper bound for the open files table so we can iterate through it.
 		// Iterate through the table, and check if we find an entry that equals our name.
-		for (int i = 1; i < numFiles; i++) {
+		for (int i = 1; i < numBlocks; i++) {
             //printf("%d\n", i);
 
             if(openFilesTable[i] != '\0') {
@@ -233,7 +229,7 @@ fileDescriptor tfs_openFile(char *name) {
 	}
 
 	// Loop through the inodes and see if we have one that matches the specified name.
-	for (int i = 1; i <= numFiles && !fileExists; i++) {
+	for (int i = 1; i <= numBlocks && !fileExists; i++) {
 		// Read the block.
 		readBlock(diskNum, i, &(buf.mem));
 
@@ -241,7 +237,7 @@ fileDescriptor tfs_openFile(char *name) {
 		if (buf.mem[0] == 2) {
 
 			// Now check if the names equal.
-			if(!strcmp(name, buf.mem+4)) {
+			if(!strcmp(name, buf.mem+5)) {
 				fileExists = 1;
 				fd = i;
 				break;
@@ -521,10 +517,11 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
     // Write the date back to the inode.
     writeBlock(diskFD, FD, inode.mem);
 
-    while ((idx > 252) && (fileEx.mem[2] != '\0')) {
+    while ((idx >= 252) && (fileEx.mem[2] != '\0')) {
         ret = fileEx.mem[2];
 
         if (readBlock(diskFD, ret, &(fileEx.mem)) < 0) {
+            perror("failed to read file extent");
             return ERR_READ;
         }
 
@@ -533,6 +530,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    
     //check if EOF
     if (idx >= 252) {
+        fprintf(stderr, "EOF reached\n");
         return ERR_INVALID_TFS;
     }
 
@@ -540,6 +538,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
     memcpy(buffer, fileEx.mem + 4 + idx, sizeof(char));
 
     if (buffer[0] == '\0') {
+        fprintf(stderr, "EOF reached\n");
         return ERR_READ;
     }
 
