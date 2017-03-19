@@ -288,6 +288,8 @@ fileDescriptor tfs_openFile(char *name) {
 
 	// The file exists, we just need to open it.
 	else {
+        printf("DEBUG: %s, name: %s\n", openFilesTable[fd], name);
+        openFilesTable[fd] = calloc(strlen(name), sizeof(char));
 		strcpy(openFilesTable[fd], name);
 
 		// Reset the file descriptor location.
@@ -698,7 +700,7 @@ void tfs_makeRW(char *name) {
 }
 
 int writeByte(fileDescriptor FD, int offset, unsigned int data) {
-    int ret = 0, blockOffset = getNumBlocks(offset);
+    int ret = 0;/*, blockOffset = getNumBlocks(offset);*/
     tfs_block inode, fileEx;
 
     //check if file is mounted and that the file exists
@@ -718,17 +720,32 @@ int writeByte(fileDescriptor FD, int offset, unsigned int data) {
     }
 
     //get the location of the file extent
-    if (readBlock(diskFD, inode.mem[2] + blockOffset, &(fileEx.mem)) < 0) {
+    if (readBlock(diskFD, inode.mem[2] , &(fileEx.mem)) < 0) {
         fprintf(stderr, "writeByte: failed to read file extent\n");
         return ERR_READ;
     }
 
+    ret = inode.mem[2];
+    int idx = 0;
+    while (offset--) {
+        readBlock(diskFD, ret, &(fileEx.mem));
+
+        if(fileEx.mem[2] == '\0') {
+            
+            initExtent(&fileEx, idx + 1);
+
+            writeBlock(diskFD, idx + 1, fileEx.mem);
+        }
+        ret = fileEx.mem[2];
+        idx++;
+    }
+
     //erase 1 byte of data
-    memset(fileEx.mem + 4, '\0', 252);
+    memset(fileEx.mem + 4, '\0', sizeof(char));
     //copy exactly one byte
     memcpy(fileEx.mem + 4, (&data), sizeof(char));
     //write the data
-    if (writeBlock(diskFD, offset, fileEx.mem) < 0) {
+    if (writeBlock(diskFD, ret, fileEx.mem) < 0) {
         fprintf(stderr, "writeByte: failed to write to file extent\n");
         return ERR_WRITE;
     }
