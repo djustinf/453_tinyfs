@@ -16,3 +16,4 @@
 #define ERR_INVALID_INODE -13
 #define ERR_INVALID_SPACE -14
 #define ERR_FILE_CLOSED -15
+#define ERR_READ_ONLY -16

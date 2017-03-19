@@ -87,8 +87,10 @@ void initInodeblock(tfs_block *buf, char* name) {
 
     buf->mem[2] = '\0';
 
-	// Next inode is null since this is the newest inode.
-	buf->mem[3] = '\0';
+	// Read/Write permission
+    // read only 0
+    // read-write 1
+	buf->mem[3] =  1;
 
 	// Write the name.
     strncpy(&(buf->mem[5]), name, 9);
@@ -338,8 +340,18 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         return ret;
     }
 
-    //if buffer is empty, exit
+    //read inode out
+    if(readBlock(diskFD, FD, &(inode.mem)) < 0) {
+        fprintf(stderr, "writeFile inode\n");
+        return ERR_READ;
+    }
 
+    //check the file permission
+    if(inode.mem[3] == 0)
+    {
+        fprintf(stderr, "tfs_writeFile: File is read-only\n");
+        return ERR_READ_ONLY;
+    }
     
     //check to see if we have enough space to write the data
     if (freeBlocks  <  reqBlocks) {
@@ -353,12 +365,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     if (resetFile(FD) < 0) {
         fprintf(stderr, "could not reset file, FD is %d\n\n", FD);
     }
-
-    //read inode out
-    if(readBlock(diskFD, FD, &(inode.mem)) < 0) {
-        fprintf(stderr, "writeFile inode\n");
-        return ERR_READ;
-    }
+    
     fprintf(stdout, "read inodeBlock, type is %d\n", inode.mem[0]);
 
     //get the super block to get the current number of free blocks
@@ -437,6 +444,13 @@ int tfs_deleteFile(fileDescriptor FD) {
     if (buf.mem[0] != 2) {
         fprintf(stderr, "block is not inode, type: %d, FD %d\n\n", buf.mem[0], FD);
         return ERR_INVALID_INODE;
+    }
+
+    //check file permission
+    if(buf.mem[0] == 0)
+    {
+        fprintf(stderr, "tfs_writeFile: File is read-only\n");
+         return ERR_READ_ONLY;
     }
 
     //get last free block
@@ -634,24 +648,23 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
 //read-write 1
 
 void tfs_makeRO(char *name) {
-    int idx = -1, extentIdx = -1;
+    int idx, extentIdx = -1;
     tfs_block inode;
 
-    for(idx = 0; idx < numBlocks; idx += BLOCKSIZE) {
-        //read the first inode
-        if(readBlock(diskFD, idx, &(inode.mem)) < 0) {
-            fprintf(stderr, "tfs_makeRO: failed to read first inode block\n");
-            return;
-        }
-        //check to see if the file is in the disk
-        if (!strcmp(inode.mem + 5, name)) {
-            extentIdx = inode.mem[2];
-            inode.mem[3] = 1;
+    for(idx = 1; idx <= numBlocks -freeBlocks; idx++) {
+        //read the inode
+        readBlock(diskFD, idx, &(inode.mem));
 
-            if(writeBlock(diskFD, idx, inode.mem)) {
-                fprintf(stderr, "tfs_makeRO: could not access inode, could not update file permssion.\n");
+        if (inode.mem[0] == 2)
+        {
+            //check to see if the file is in the disk
+            if (!strcmp(inode.mem + 4, name)) {
+                extentIdx = inode.mem[2];
+                inode.mem[3] = 0;
+
+                writeBlock(diskFD, idx, inode.mem);
+                break;
             }
-            break;
         }
     }
     if (extentIdx < 0) {
@@ -660,24 +673,23 @@ void tfs_makeRO(char *name) {
 }
 
 void tfs_makeRW(char *name) {
-    int idx = -1, extentIdx = -1;
+    int idx, extentIdx = -1;
     tfs_block inode;
 
-    for(idx =0; idx < numBlocks; idx += BLOCKSIZE) {
-        //read the first inode
-        if(readBlock(diskFD, idx, &(inode.mem)) < 0) {
-            fprintf(stderr, "tfs_makeRW: failed to read first inode block\n");
-            return;
-        }
+    for(idx = 1; idx <= numBlocks - freeBlocks; idx++) {
+        //read the inode
+        readBlock(diskFD, idx, &(inode.mem));
+            
         //check to see if the file is in the disk
-        if (!strcmp(inode.mem + 5, name)) {
-            extentIdx = inode.mem[2];
-            inode.mem[3] = 0;
+        if (inode.mem[0] == 2)
+        {
+            if (!strcmp(inode.mem + 4, name)) {
+                extentIdx = inode.mem[2];
+                inode.mem[3] = 1;
 
-            if(writeBlock(diskFD, idx, inode.mem)) {
-                fprintf(stderr, "tfs_makeRW: could not access inode, could not update file permssion.\n");
+                writeBlock(diskFD, idx, inode.mem);
+                break;
             }
-            break;
         }
     }
     if (extentIdx < 0) {
@@ -686,7 +698,7 @@ void tfs_makeRW(char *name) {
 }
 
 int writeByte(fileDescriptor FD, int offset, unsigned int data) {
-    int curr = 0, ret = 0, blockOffset = getNumBlocks(offset);
+    int ret = 0, blockOffset = getNumBlocks(offset);
     tfs_block inode, fileEx;
 
     //check if file is mounted and that the file exists
@@ -699,30 +711,28 @@ int writeByte(fileDescriptor FD, int offset, unsigned int data) {
         fprintf(stderr, "inode\n");
         return ERR_READ;
     }
+
+    if (inode.mem[3] == 0) {
+        fprintf(stderr, "writeByte: File is read-only\n");
+        return ERR_READ_ONLY;
+    }
+
     //get the location of the file extent
     if (readBlock(diskFD, inode.mem[2] + blockOffset, &(fileEx.mem)) < 0) {
         fprintf(stderr, "writeByte: failed to read file extent\n");
         return ERR_READ;
     }
 
-    //store the location of the next file extent
-    curr = fileEx.mem[2];
-
-    //erase everthing in the data bytes
+    //erase 1 byte of data
     memset(fileEx.mem + 4, '\0', 252);
-    memcpy(fileEx.mem + 4, (&data), 252);
+    //copy exactly one byte
+    memcpy(fileEx.mem + 4, (&data), sizeof(char));
+    //write the data
     if (writeBlock(diskFD, offset, fileEx.mem) < 0) {
         fprintf(stderr, "writeByte: failed to write to file extent\n");
         return ERR_WRITE;
     }
 
-    memset(fileEx.mem + 4, '\0', 252);
-    memcpy(fileEx.mem + 4, (&data) + 252, 8);
-    if (writeBlock(diskFD, curr, fileEx.mem) < 0) {
-        fprintf(stderr, "writeByte: failed to write to file extent\n");
-        return ERR_WRITE;
-    }
-    
    return SUCCESS;
 }
 
