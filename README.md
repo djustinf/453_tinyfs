@@ -13,7 +13,7 @@
  - Byte 0: block type = 2
  - Byte 1: "magic number" = 0x44
  - Byte 2: points to first file extent
- - Byte 3: pointer to next inode or null if last one
+ - Byte 3: R/W
  - Byte 4: EMPTY
  - Byte 5-12: file name
  - Byte 13: null term
