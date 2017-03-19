@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "tinyFS.h"
 #include "libTinyFS.h"
@@ -16,6 +17,8 @@ int main(int argc, char *argv[]) {
     char content1[] = "content 1";
     char content2[] = "content 2";
     char content3[] = "content 3";
+    time_t curTime;
+    time_t tempTime;
 
     fileDescriptor FD1, FD2, FD3;
     waitForEnter();
@@ -30,12 +33,15 @@ int main(int argc, char *argv[]) {
     printf("%s: mounted\n", DEFAULT_DISK_NAME);
     waitForEnter();
     printf("Attempting to open files\n");
+    time(&tempTime);
+    printf("Time right before File 1 creation: %.0f\n", (double) tempTime);
     FD1 = tfs_openFile("File1");
     if (FD1 < 0)
         perror("failed to open File1");
     else
         printf("File1 opened\n");
-
+    curTime = tfs_readFileInfo(FD1);
+    printf("File1 creation time from readFileInfo (should match previous time): %.0f\n", (double) curTime);
     FD2 = tfs_openFile("File2");
     if (FD2 < 0)
         perror("failed to open File2");
