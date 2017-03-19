@@ -1,0 +1,18 @@
+Team members: Adair Camacho (acamac03@calpoly.edu), Justin Foxhoven (dfoxhove@calpoly.edu), Geoff Wacker (gwacker@calpoly.edu)
+
+Our implementation:
+
+Additional functionality:
+    1. Directory listing and renaming: 
+    
+    2. Read-only and writeByte support:
+    
+    3. Timestamps: Bytes 18-42 are used to store three time_t values representing
+    the creation time, last modified time, and last accessed time. tfs_readFileInfo
+    will return the creation time of a given file.
+
+    4. Fragmentation info and defragmentation: tfsDisplayFragments was implemented
+    to display a visual representation of the file system. It simply loops through
+    all of the memory all prints out a visual representation for every block.
+
+Limitations/Bugs:
