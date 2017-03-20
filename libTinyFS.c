@@ -36,7 +36,6 @@ int tfs_mkfs(char *filename, int nBytes) {
         /* init and write superblock */
 	    initSuperblock(&buf, 1, nBytes);
 		
-        //printf("\nMKFS: %c", buf.mem[1]);
 		if (writeBlock(fd, traversed, buf.mem) < 0) {
 			return MKFS_FAILURE;
 		}
@@ -120,8 +119,6 @@ int tfs_mount(char *diskname) {
 
 		// Read the superblock.
 		readBlock(diskNum, 0, &buf);
-
-		//printf("\nDEBUG: %c", buf[1]);
 
 		// Check that the block is valid.
 		if (buf[1] != 0x44) {
@@ -210,12 +207,9 @@ fileDescriptor tfs_openFile(char *name) {
 		// Get the address of the first free block.
 		firstFree = buf.mem[2];
 
-        printf("firstFree: %d\n", firstFree);
-
 		// Use that as the upper bound for the open files table so we can iterate through it.
 		// Iterate through the table, and check if we find an entry that equals our name.
 		for (int i = 1; i < numBlocks; i++) {
-            //printf("%d\n", i);
 
             if(openFilesTable[i] != '\0') {
 			    strcpy(tempName, openFilesTable[i]);
@@ -337,7 +331,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     tfs_block super, inode, temp;
     time_t curTime;
 
-    printf("tfs_writeFile, diskFD is %d, FD: %d\n", diskFD, FD);
     //check if file is mounted and that the file exists
     if((ret = checkMountAndFile(FD)) < 0) {
         return ret;
@@ -350,7 +343,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     }
 
     //check the file permission
-    fprintf(stdout, "permission %d\n", (int)inode.mem[3]);
     if(inode.mem[3] == 0)
     {
         return ERR_READ_ONLY;
@@ -359,7 +351,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     //check to see if we have enough space to write the data
     if (freeBlocks  <  reqBlocks) {
         fprintf(stderr, "Error: not enough space available, numBlocks %d, freeBlocks %d, reqBlocks %d\n",
-          numBlocks, freeBlocks, reqBlocks);
+        numBlocks, freeBlocks, reqBlocks);
 
         return ERR_INVALID_SPACE;
     }
@@ -376,10 +368,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         perror("Error: reading super block failed\n");
         return ERR_READ;
     }
-    fprintf(stdout, "read superBlock, type is %d\n", super.mem[0]);
-    fprintf(stdout, "idx: %d, super.mem[3]: %d\n", index, super.mem[3]);
     //update the inode block
-    //strcpy(inode.mem + 5, file_name);
     inode.mem[14] = reqBlocks;
 
     // Get the time.
@@ -395,14 +384,24 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     inode.mem[2] = super.mem[2];
     writeBlock(diskFD, FD, inode.mem);
 
+    //read in inode
     readBlock(diskFD, super.mem[2], &(temp.mem));
+    //get the position of the first file extent
     position = super.mem[2];
+    //initialize the file extent
     initExtent(&temp, temp.mem[2]);
+
+    //check the offset to see if it's greater than 252 bytes
     offset = (size - index >= 252) ? (252) : (size - index);
+    //copy the buffer into a temp/file extent block
     memcpy(temp.mem + 4, buffer + index, offset);
+    //increment the current file pointer
     index += offset;
+    //updae the file extent
     writeBlock(diskFD, inode.mem[2], temp.mem);
     freeBlocks--;
+
+    //repeat the process for the next file extent blocks
     for (i = 1; i < reqBlocks; i++) {
         position = temp.mem[2];
         readBlock(diskFD, temp.mem[2], &(temp.mem));
@@ -415,7 +414,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     }
     super.mem[2] = temp.mem[2];
     temp.mem[2] = '\0';
-    //update super
+    //update super block
     writeBlock(diskFD, 0, super.mem);
     writeBlock(diskFD, position, temp.mem);
     openFilesLocation[FD] = 0;
@@ -621,7 +620,6 @@ void tfs_readdir() {
 	int i;
 	tfs_block buf;
 
-	printf("Directory: root\n");
 	for (i = 1; i < freeBlocks; i++) {
 		readBlock(diskFD, i, &(buf.mem));
 		//if it's a inode, print the name and size
@@ -663,7 +661,6 @@ void tfs_makeRO(char *name) {
 
         if (inode.mem[0] == 2)
         {
-            printf("tfs_makeRO %s\n", inode.mem + 5);
             //check to see if the file is in the disk
             if (!strcmp(inode.mem + 5, name)) {
                 extentIdx = inode.mem[2];
@@ -675,9 +672,8 @@ void tfs_makeRO(char *name) {
             }
         }
     }
-    if (extentIdx < 0) {
+    if (extentIdx < 0)
         fprintf(stderr, "tfs_makeRO: file %s not found\n", name);
-    }
 }
 
 void tfs_makeRW(char *name) {
@@ -700,9 +696,8 @@ void tfs_makeRW(char *name) {
             }
         }
     }
-    if (extentIdx < 0) {
+    if (extentIdx < 0)
         fprintf(stderr, "tfs_makeRW: file %s not found\n", name);
-    }
 }
 
 int writeByte(fileDescriptor FD, unsigned int data) {
@@ -722,7 +717,7 @@ int writeByte(fileDescriptor FD, unsigned int data) {
 
     //read from inode to get the first ref to file extent
     if (readBlock(diskFD, FD, &(inode.mem)) < 0) {
-        fprintf(stderr, "inode\n");
+        fprintf(stderr, "writeByte: could not read inode\n");
         return ERR_READ;
     }
     
@@ -730,7 +725,7 @@ int writeByte(fileDescriptor FD, unsigned int data) {
 
     //if (readBlock(diskFD, FD, &(fileEx.mem)) < 0)
     if (readBlock(diskFD, inode.mem[2], &(fileEx.mem)) < 0) {
-        fprintf(stderr, "file extent\n");
+        fprintf(stderr, "writeByte: could not read file extent\n");
         return ERR_READ;
     }
 
