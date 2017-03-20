@@ -534,7 +534,6 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
    
     //check if EOF
     if (idx >= 252) {
-        fprintf(stderr, "EOF reached\n");
         return ERR_INVALID_TFS;
     }
 
@@ -542,7 +541,6 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
     memcpy(buffer, fileEx.mem + 4 + idx, sizeof(char));
 
     if (buffer[0] == '\0') {
-        fprintf(stderr, "EOF reached\n");
         return ERR_READ;
     }
 
@@ -787,7 +785,6 @@ int writeByte(fileDescriptor FD, unsigned int data) {
    
     //check if EOF
     if (idx >= 252) {
-        fprintf(stderr, "EOF reached\n");
         return ERR_INVALID_TFS;
     }
 
@@ -795,7 +792,6 @@ int writeByte(fileDescriptor FD, unsigned int data) {
     memcpy(&buffer, fileEx.mem + 4 + idx, sizeof(char));
 
     if (buffer == '\0') {
-        fprintf(stderr, "EOF reached\n");
         return ERR_READ;
     }
 

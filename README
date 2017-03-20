@@ -71,6 +71,12 @@ Additional functionality:
     of the test file to show the internal fragmentation that has occured from
     opening, writing, and closing files.
 
+    displayFragments Key:
+    [S] = Superblock
+    [I] = Inode
+    [E] = File Extent
+    [F] = Free Block
+
 Limitations/Bugs:
     - Disk size: Due to the use of unsigned characters in storing file references, the disk cannot
     be larger than 256 blocks. This allows a reference to each block to be stored in a single byte
