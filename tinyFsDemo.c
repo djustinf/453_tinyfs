@@ -128,19 +128,6 @@ int main(int argc, char *argv[]) {
     printf("Displaying file system (all free blocks should be contiguous):\n");
     tfs_displayFragments();
 
-    /*
-        other tests here
-
-        Test timestamps        
-
-        make_RO
-        make_RW
-        writeByte
-
-        writeFile with larger files
-
-        defrag (if time permits. function is not done yet)
-    */
     waitForEnter();
     printf("writing to File1 at offset 2\n");
     tfs_seek(FD1, 2);
