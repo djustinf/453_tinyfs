@@ -1,6 +1,6 @@
 Team members: Adair Camacho (acamac03@calpoly.edu), Daniel Justin Foxhoven (dfoxhove@calpoly.edu), Geoff Wacker (gwacker@calpoly.edu)
 
-A Makefile is include, to delete object files as well as the generated disk run 'make clean'
+A Makefile is included, to delete object files as well as the generated disk run 'make clean'
 
 to run our demo
 usage:./tinyFsDemo
@@ -48,8 +48,8 @@ Additional functionality:
     files by iterating through the disk and taking note of all inodes. It then prints out the
     names of every file in addition to the size of the corresponding file.
     
-    2. Read-only and writeByte support: Bytes 3 of the inode block stores the file permission, a 
-    value of 1 gives a file read-write permssion while a value of 0 gives it a read-only permission.
+    2. Read-only and writeByte support: Byte 3 of the inode block stores the file permission, a 
+    value of 1 gives a file read-write permission while a value of 0 gives it read-only permission.
     The files are initially given read-write permisson but users can change the pemission to read-only 
     by calling the tfs_makeRO function and passing in the file name. When a file has read-only permission,
     calls to writeByte, tfs_writeFile, and tfs_deleteFile will fail. Conversely, if a user wants to change
