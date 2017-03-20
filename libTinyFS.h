@@ -1,7 +1,10 @@
 /* Program 4
  * Daniel Foxhoven
+ * Geoff Wacker
+ * Adair Camacho 
  * Due Date: 3/19/17
  */
+
 #define MAGIC_NUM 0x44
 #define MAX_FILE_NAME_LENGTH 8
 #include "tinyFS.h"
@@ -18,6 +21,8 @@ int tfs_defrag();
 int tfs_displayFragments();
 int resetFile(fileDescriptor FD);
 time_t tfs_readFileInfo(fileDescriptor FD);
+time_t tfs_readFileLastModified(fileDescriptor FD);
+time_t tfs_readFileLastAccessed(fileDescriptor FD);
 int tfs_rename(fileDescriptor FD, char* newName);
 void tfs_readdir();
 void initFreeblock(tfs_block *block, unsigned char nextFree);

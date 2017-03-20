@@ -376,7 +376,7 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
     memcpy(&(inode.mem[18 + sizeof(time_t)]), &curTime, sizeof(time_t));
 
     // Write last accessed date.
-    memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &time, sizeof(time_t));
+    memcpy(&inode.mem[18 + (2 * sizeof(time_t))], &curTime, sizeof(time_t));
 
     //at this point we have the inode and the super block
     inode.mem[2] = super.mem[2];
@@ -644,6 +644,43 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
 	memcpy(&creationTime, &buf.mem[18], sizeof(time_t));
 
 	return creationTime;
+}
+
+time_t tfs_readFileLastModified(fileDescriptor FD) {
+    time_t lastModifiedTime;
+	tfs_block buf;
+
+	//check if file is open
+	if (openFilesTable[FD] == '\0') {
+		perror("readFileLastModified: file closed");
+		return ERR_FILE_CLOSED;
+	}
+
+	//read in inode of file to access time.
+	readBlock(diskFD, FD, &(buf.mem));
+
+	// Grab the last modified time.
+	memcpy(&lastModifiedTime, &buf.mem[26], sizeof(time_t));
+
+	return lastModifiedTime;
+}
+time_t tfs_readFileLastAccessed(fileDescriptor FD) {
+    time_t lastAccessedTime;
+	tfs_block buf;
+
+	//check if file is open
+	if (openFilesTable[FD] == '\0') {
+		perror("readFileLastAccessed: file closed");
+		return ERR_FILE_CLOSED;
+	}
+
+	//read in inode of file to access time.
+	readBlock(diskFD, FD, &(buf.mem));
+
+	// Grab the last accessed time.
+	memcpy(&lastAccessedTime, &buf.mem[34], sizeof(time_t));
+
+	return lastAccessedTime;
 }
 
 //read only 0

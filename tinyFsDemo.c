@@ -54,7 +54,10 @@ int main(int argc, char *argv[]) {
     else
         printf("File1 opened\n");
     curTime = tfs_readFileInfo(FD1);
-    printf("File1 creation time from readFileInfo (should match previous time): %.0f\n", (double) curTime);
+    printf("File1 creation time after open (should match previous time): %.0f\n", (double) curTime);
+    printf("File1 last modified time after open (should match previous time): %.0f\n", (double) tfs_readFileLastModified(FD1));
+    printf("File1 last accessed time after open (should match previous time): %.0f\n", (double) tfs_readFileLastAccessed(FD1));
+    
     FD2 = tfs_openFile("File2");
     if (FD2 < 0)
         perror("failed to open File2");
@@ -86,10 +89,12 @@ int main(int argc, char *argv[]) {
 
     waitForEnter();
     printf("Reading from File 1...\n");
+    printf("File1 last accessed time before read: %.0f\n", (double) tfs_readFileLastAccessed(FD1));
     while (tfs_readByte(FD1, &readBuffer) >= 0)
         printf("%c", readBuffer);
     printf("\n");
-    
+    printf("File1 last accessed time after read (should be slightly newer): %.0f\n", (double) tfs_readFileLastAccessed(FD1));
+
     waitForEnter();
     // Try to read from file 1. Won't print anything.
     printf("Attempting to read from File 1 again. No data should be printed:\n");
@@ -175,12 +180,13 @@ int main(int argc, char *argv[]) {
 
     waitForEnter();
     FD3 = tfs_openFile("File3");
+    printf("File3 last modified time before read: %.0f\n", (double) tfs_readFileLastModified(FD3));
     printf("Writing 1000 bytes to File3\n");
     if (tfs_writeFile(FD3, content4, 1000) < 0)
         perror("write to File3 failed");
     else
         printf("Wrote to File3\n");
-
+printf("File3 last modified time before read (should be slightly newer): %.0f\n", (double) tfs_readFileLastModified(FD3));
     waitForEnter();
     printf("Attempting to read from File 3...\n");
     while (tfs_readByte(FD3, &readBuffer) >= 0)
