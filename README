@@ -67,11 +67,13 @@ Additional functionality:
     all of the memory all prints out a visual representation for every block. To
     test this, we call displayFragments after we've opened three files, and it
     correctly prints out the superblock, three inodes, and three file extents, 
-    with the rest of the blocks being free. 
+    with the rest of the blocks being free. We also call it again towards the end
+    of the test file to show the internal fragmentation that has occured from
+    opening, writing, and closing files.
 
 Limitations/Bugs:
     - Disk size: Due to the use of unsigned characters in storing file references, the disk cannot
     be larger than 256 blocks. This allows a reference to each block to be stored in a single byte
     rather than requiring the 4 bytes to store an integer.
 
-    - 
+    - Due to time constraints, we were unable to implement tfs_defrag.
