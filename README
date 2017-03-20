@@ -40,7 +40,12 @@ Additional functionality:
     files by iterating through the disk and taking note of all inodes. It then prints out the
     names of every file in addition to the size of the corresponding file.
     
-    2. Read-only and writeByte support:
+    2. Read-only and writeByte support: Bytes 3 of the inode block stores the file permission, a 
+    value of 1 gives a file read-write permssion while a value of 0 gives it a read-only permission.
+    The files are initially given read-write permisson but users can change the pemission to read-only 
+    by calling the tfs_makeRO function and passing in the file name. When a file has read-only permission,
+    calls to writeByte, tfs_writeFile, and tfs_deleteFile will fail. Conversely, if a user wants to change
+    a file's permission to read-write they can call tfs_makeRW and pass in the file name.
     
     3. Timestamps: Bytes 18-42 of the inode are used to store three time_t values representing
     the creation time, last modified time, and last accessed time. tfs_readFileInfo
