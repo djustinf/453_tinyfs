@@ -361,8 +361,6 @@ int tfs_writeFile(fileDescriptor FD,char *buffer, int size) {
         fprintf(stderr, "could not reset file, FD is %d\n\n", FD);
     }
     
-    fprintf(stdout, "read inodeBlock, type is %d\n", inode.mem[0]);
-
     //get the super block to get the current number of free blocks
     if(readBlock(diskFD, 0, &(super.mem)) < 0) {
         perror("Error: reading super block failed\n");
