@@ -9,7 +9,7 @@ typedef struct {
 
 void tfs_makeRO(char *name);
 void tfs_makeRW(char *name);
-int writeByte(fileDescriptor FD, int offset, unsigned int data);
+int writeByte(fileDescriptor FD, unsigned int data);
 int tfs_defrag();
 int tfs_displayFragments();
 int resetFile(fileDescriptor FD);

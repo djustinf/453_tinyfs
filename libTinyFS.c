@@ -699,71 +699,74 @@ void tfs_makeRW(char *name) {
     }
 }
 
-int writeByte(fileDescriptor FD, int offset, unsigned int data) {
-    int ret = 0;/*, blockOffset = getNumBlocks(offset);*/
+int writeByte(fileDescriptor FD, unsigned int data) {
+    char buffer;
+    int ret, idx;
     tfs_block inode, fileEx;
+    time_t curTime;
 
-    //get the current location of the file pouinter
 
-    //check if file is mounted and that the file exists
+    //check if file is mounted and that file exists
     if((ret = checkMountAndFile(FD)) < 0) {
-       return ret;
+        return ret;
     }
+   
+    //get the current location of the file pointer
+    idx = openFilesLocation[FD];
 
     //read from inode to get the first ref to file extent
     if (readBlock(diskFD, FD, &(inode.mem)) < 0) {
         fprintf(stderr, "inode\n");
         return ERR_READ;
     }
-
-    if (inode.mem[3] == 0) {
-        fprintf(stderr, "writeByte: File is read-only\n");
-        return ERR_READ_ONLY;
-    }
     
     //get the location of the file extent
-    if (readBlock(diskFD, inode.mem[2] , &(fileEx.mem)) < 0) {
-        fprintf(stderr, "writeByte: failed to read file extent\n");
+
+    //if (readBlock(diskFD, FD, &(fileEx.mem)) < 0)
+    if (readBlock(diskFD, inode.mem[2], &(fileEx.mem)) < 0) {
+        fprintf(stderr, "file extent\n");
         return ERR_READ;
     }
 
+    // Get the time.
+    time(&curTime);
+
+    // Write last accessed/modified date.
+    memcpy(&(inode.mem[18 + sizeof(time_t)]), &curTime, sizeof(time_t));
+    memcpy(&(inode.mem[18 + (2 * sizeof(time_t))]), &curTime, sizeof(time_t));
+
+    // Write the date back to the inode.
+    writeBlock(diskFD, FD, inode.mem);
     ret = inode.mem[2];
+    while ((idx >= 252) && (fileEx.mem[2] != '\0')) {
+        ret = fileEx.mem[2];
 
-    //check if the offset is greater than 252
-    //if it is, then move the appropriate amount of blocks
-    //as each one can only hold 252 bytes of data
-    if (offset > 252) {
-        int idx = 0, temp;
-
-        temp = offset / 252;
-        if (temp % 252)
-            temp++;
-        offset -= 252;
-
-        while (temp--) {
-            readBlock(diskFD, ret, &(fileEx.mem));
-
-            if(fileEx.mem[2] == '\0') {
-            
-                initExtent(&fileEx, idx + 1);
-
-                writeBlock(diskFD, idx + 1, fileEx.mem);
-            }
-            ret = fileEx.mem[2];
-            idx++;
+        if (readBlock(diskFD, ret, &(fileEx.mem)) < 0) {
+            perror("failed to read file extent");
+            return ERR_READ;
         }
-    }
-    
 
-    //copy exactly one byte
-    memcpy(fileEx.mem + 4 + offset, (&data), sizeof(char));
-    //write the data
-    if (writeBlock(diskFD, ret, fileEx.mem) < 0) {
-        fprintf(stderr, "writeByte: failed to write to file extent\n");
-        return ERR_WRITE;
+        idx -= 252;
+    }
+   
+    //check if EOF
+    if (idx >= 252) {
+        fprintf(stderr, "EOF reached\n");
+        return ERR_INVALID_TFS;
     }
 
-   return SUCCESS;
+    //get the reference to the first inode
+    memcpy(&buffer, fileEx.mem + 4 + idx, sizeof(char));
+
+    if (buffer == '\0') {
+        fprintf(stderr, "EOF reached\n");
+        return ERR_READ;
+    }
+
+    fileEx.mem[4+idx] = (unsigned char) data;
+    writeBlock(diskFD, ret, fileEx.mem);
+
+	return SUCCESS;
 }
 
 int resetFile(fileDescriptor FD) {

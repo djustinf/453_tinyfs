@@ -137,9 +137,11 @@ int main(int argc, char *argv[]) {
     */
     waitForEnter();
     printf("writing to File1 at offset 2\n");
-    if (writeByte(FD1, 2, 'A') < 0)
+    tfs_seek(FD1, 2);
+    if (writeByte(FD1, 'A') < 0)
         fprintf(stderr, "writeByte: failed to write 1 byte");
     else {
+        tfs_seek(FD1, 0);
         printf("Successfully wrote to File 1, content is now\n");
         while (tfs_readByte(FD1, &readBuffer) >= 0)
             printf("%c", readBuffer);
