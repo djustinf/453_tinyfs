@@ -1,3 +1,7 @@
+/* Program 4
+ * Daniel Foxhoven
+ * Due Date: 3/19/17
+ */
 #define MAGIC_NUM 0x44
 #define MAX_FILE_NAME_LENGTH 8
 #include "tinyFS.h"

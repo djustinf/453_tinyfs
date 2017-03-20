@@ -1,3 +1,7 @@
+/* Program 4
+ * Daniel Foxhoven
+ * Due Date: 3/19/17
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
