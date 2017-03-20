@@ -1,4 +1,4 @@
-Team members: Adair Camacho (acamac03@calpoly.edu), Justin Foxhoven (dfoxhove@calpoly.edu), Geoff Wacker (gwacker@calpoly.edu)
+Team members: Adair Camacho (acamac03@calpoly.edu), Daniel Justin Foxhoven (dfoxhove@calpoly.edu), Geoff Wacker (gwacker@calpoly.edu)
 
 Our implementation:
     Superblock (has to be at block 0):
@@ -34,7 +34,11 @@ Our implementation:
         Byte 2: points to next free block or NULL if last one
 
 Additional functionality:
-    1. Directory listing and renaming: 
+    1. Directory listing and renaming: Renaming a file requires the file to be open. Once this
+    condition is met however, the operation is relatively trivial. Rename simply moves the given
+    string into the name position in the inode given. The readdir operation simply lists off all
+    files by iterating through the disk and taking note of all inodes. It then prints out the
+    names of every file in addition to the size of the corresponding file.
     
     2. Read-only and writeByte support:
     
@@ -53,3 +57,8 @@ Additional functionality:
     with the rest of the blocks being free. 
 
 Limitations/Bugs:
+    - Disk size: Due to the use of unsigned characters in storing file references, the disk cannot
+    be larger than 256 blocks. This allows a reference to each block to be stored in a single byte
+    rather than requiring the 4 bytes to store an integer.
+
+    - 
